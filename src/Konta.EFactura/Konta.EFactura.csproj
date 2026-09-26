@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+
+    <PackageId>Konta.EFactura</PackageId>
+    <Version>0.1.0-alpha</Version>
+    <Authors>December Capital</Authors>
+    <Description>Client for Moldova's SIA e-Factura (State Tax Service) SOAP API, with a serialiser for its invoice XML schema.</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/December-Capital/konta-efactura</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/December-Capital/konta-efactura</RepositoryUrl>
+    <PackageTags>moldova;efactura;sfs;e-invoicing;einvoicing</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="../../README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+
+</Project>

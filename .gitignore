@@ -1,0 +1,13 @@
+bin/
+obj/
+*.user
+.vs/
+TestResults/
+*.trx
+*.nupkg
+# Never commit credentials or captured traffic from a real SFS account.
+*.pfx
+*.p12
+appsettings.Local.json
+.env
+fixtures/live/

@@ -1,0 +1,142 @@
+using System.Globalization;
+
+namespace Konta.EFactura;
+
+/// <summary>One fiscal invoice, in the shape SIA "e-Factura" accepts.</summary>
+public sealed class Invoice
+{
+    /// <summary>Supplier IDNO (13 digits).</summary>
+    public required string SupplierIdno { get; init; }
+
+    /// <summary>Buyer IDNO (13 digits).</summary>
+    public required string BuyerIdno { get; init; }
+
+    /// <summary>Delivery date and time.</summary>
+    public required DateTimeOffset DeliveryDate { get; init; }
+
+    /// <summary>Supplier bank account, when the document carries one.</summary>
+    public string? SupplierBankAccount { get; init; }
+
+    /// <summary>Buyer bank account, when the document carries one.</summary>
+    public string? BuyerBankAccount { get; init; }
+
+    /// <summary>
+    /// Our own identifier, echoed back in <c>AdditionalInformation/id</c>. Set it: it is the only
+    /// way to reconcile a submission against a platform document before series and number exist.
+    /// </summary>
+    public string? CorrelationId { get; init; }
+
+    /// <summary>The lines.</summary>
+    public required IReadOnlyList<InvoiceLine> Lines { get; init; }
+
+    /// <summary>
+    /// Checks what the platform will not check for you.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">The invoice is not internally consistent.</exception>
+    public void Validate()
+    {
+        AssertIdno(SupplierIdno, nameof(SupplierIdno));
+        AssertIdno(BuyerIdno, nameof(BuyerIdno));
+
+        if (Lines.Count == 0)
+        {
+            throw new InvalidOperationException("An invoice needs at least one line.");
+        }
+
+        foreach (var line in Lines)
+        {
+            line.Validate();
+        }
+    }
+
+    /// <summary>Total excluding VAT.</summary>
+    public decimal TotalWithoutVat => Lines.Sum(l => l.TotalWithoutVat);
+
+    /// <summary>Total VAT.</summary>
+    public decimal TotalVat => Lines.Sum(l => l.VatAmount);
+
+    /// <summary>Total including VAT.</summary>
+    public decimal TotalWithVat => Lines.Sum(l => l.TotalWithVat);
+
+    private static void AssertIdno(string idno, string field)
+    {
+        if (idno.Length != 13 || !idno.All(char.IsAsciiDigit))
+        {
+            throw new InvalidOperationException(
+                string.Create(CultureInfo.InvariantCulture, $"{field} must be 13 digits; got '{idno}'."));
+        }
+    }
+}
+
+/// <summary>One invoice line.</summary>
+public sealed class InvoiceLine
+{
+    /// <summary>Item code.</summary>
+    public required string Code { get; init; }
+
+    /// <summary>Item description, as it should appear on the document.</summary>
+    public required string Name { get; init; }
+
+    /// <summary>Unit of measure, for example <c>buc</c> or <c>kg</c>.</summary>
+    public required string UnitOfMeasure { get; init; }
+
+    /// <summary>Quantity. Negative on a credit line.</summary>
+    public required decimal Quantity { get; init; }
+
+    /// <summary>Unit price excluding VAT.</summary>
+    public required decimal UnitPriceWithoutVat { get; init; }
+
+    /// <summary>
+    /// VAT rate as a whole-number percentage: <c>20</c>, <c>8</c> or <c>0</c> — never <c>0.20</c>.
+    /// </summary>
+    public required decimal VatPercent { get; init; }
+
+    /// <summary>Line total excluding VAT.</summary>
+    public decimal TotalWithoutVat => Round(Quantity * UnitPriceWithoutVat);
+
+    /// <summary>Line VAT.</summary>
+    public decimal VatAmount => Round(TotalWithoutVat * VatPercent / 100m);
+
+    /// <summary>Line total including VAT.</summary>
+    public decimal TotalWithVat => TotalWithoutVat + VatAmount;
+
+    /// <summary>
+    /// Checks the line is self-consistent.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">The line is not usable.</exception>
+    public void Validate()
+    {
+        if (VatPercent is < 0m or > 100m)
+        {
+            throw new InvalidOperationException(
+                string.Create(
+                    CultureInfo.InvariantCulture,
+                    $"VatPercent is a whole-number percentage between 0 and 100; got {VatPercent}. Use 20, not 0.20."));
+        }
+
+        if (string.IsNullOrWhiteSpace(Name))
+        {
+            throw new InvalidOperationException("A line needs a description.");
+        }
+
+        // A zero-VAT line still counts towards the document totals. Losing it is a known way to
+        // produce a document whose totals disagree with its lines.
+        if (Quantity == 0m)
+        {
+            throw new InvalidOperationException(
+                string.Create(CultureInfo.InvariantCulture, $"Line '{Name}' has zero quantity."));
+        }
+
+        // Sign consistency: a negative quantity must yield a negative line total. The integration
+        // guide's own worked example gets this wrong, so it is worth asserting.
+        if (decimal.Sign(Quantity) != decimal.Sign(TotalWithoutVat) && TotalWithoutVat != 0m)
+        {
+            throw new InvalidOperationException(
+                string.Create(
+                    CultureInfo.InvariantCulture,
+                    $"Line '{Name}' has quantity {Quantity} but total {TotalWithoutVat}; signs disagree."));
+        }
+    }
+
+    private static decimal Round(decimal value) => decimal.Round(value, 2, MidpointRounding.ToEven);
+}
