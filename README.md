@@ -25,11 +25,11 @@ Vă rugăm să nu includeți IDNO-uri, denumiri de firme sau facturi reale.
 
 ## Pentru programatori
 
-- [docs/PROTOCOL.md](docs/PROTOCOL.md) — cum funcționează serviciul, stările facturii, exemple și
+- [docs/PROTOCOL.md](docs/PROTOCOL.md): cum funcționează serviciul, stările facturii, exemple și
   capcanele deja întâlnite
-- [docs/SOAP-NOTES.md](docs/SOAP-NOTES.md) — ce rămâne de confirmat la prima conexiune
+- [docs/SOAP-NOTES.md](docs/SOAP-NOTES.md): ce rămâne de confirmat la prima conexiune
 - [Ghidul oficial de integrare](https://efactura.sfs.md/Help/Ghid_integrare_Semi_Automatizata.pdf) (SFS)
 
 ---
 
-Licența MIT — vezi [LICENSE](LICENSE). © 2026 December Capital.
+Licența MIT, vezi [LICENSE](LICENSE). © 2026 December Capital.
