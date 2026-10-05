@@ -25,6 +25,10 @@ Vă rugăm să nu includeți IDNO-uri, denumiri de firme sau facturi reale.
 
 ## Pentru programatori
 
+Pachetul NuGet `Konta.EFactura` se publică din GitHub Actions la fiecare etichetă `v<versiune>`
+(de exemplu `v0.1.0-alpha.1`), în GitHub Packages:
+`https://nuget.pkg.github.com/December-Capital/index.json`.
+
 - [docs/PROTOCOL.md](docs/PROTOCOL.md): cum funcționează serviciul, stările facturii, exemple și
   capcanele deja întâlnite
 - [docs/SOAP-NOTES.md](docs/SOAP-NOTES.md): ce rămâne de confirmat la prima conexiune

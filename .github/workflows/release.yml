@@ -1,0 +1,57 @@
+name: Release
+
+# A tag v<version> (v0.1.0-alpha.1, v0.2.0) builds, tests and publishes Konta.EFactura at that
+# version to GitHub Packages, with the repository's own token: there is no secret to keep. When the
+# NUGET_API_KEY secret is set, the same package also goes to nuget.org, where anybody can restore it
+# without a GitHub account. A version, once published, is never published again.
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  DOTNET_NOLOGO: "true"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "true"
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: Version from the tag
+        id: version
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]]; then
+            echo "The tag $GITHUB_REF_NAME is not v<semantic version>." >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - run: dotnet restore Konta.EFactura.sln
+      - run: dotnet build Konta.EFactura.sln -c Release --no-restore -p:Version=${{ steps.version.outputs.version }} -p:ContinuousIntegrationBuild=true
+      - run: dotnet test Konta.EFactura.sln -c Release --no-build
+      - run: dotnet pack src/Konta.EFactura -c Release --no-build -p:Version=${{ steps.version.outputs.version }} -o out
+
+      - name: Publish to GitHub Packages
+        run: >
+          dotnet nuget push "out/*.nupkg"
+          --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
+          --api-key "${{ secrets.GITHUB_TOKEN }}"
+
+      - name: Publish to nuget.org
+        if: env.NUGET_API_KEY != ''
+        run: >
+          dotnet nuget push "out/*.nupkg"
+          --source "https://api.nuget.org/v3/index.json"
+          --api-key "$NUGET_API_KEY"
