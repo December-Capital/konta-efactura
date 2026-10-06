@@ -51,7 +51,10 @@ Worth knowing before you estimate anything:
 4 and 9 are not issued. Do not renumber them, do not fill the gaps, and do not assume a linear
 progression.
 
-### The 15 operations
+### The operations
+
+The guides describe 15; the service's WSDL (`spec/sfs/Service.wsdl`) has 19. The four the guides
+leave out are `Test`, `GetArchivedInvoices`, `GetBankAccountInfo` and `GetSeriaAndNumbers`. The 15:
 
 `PostInvoices` · `PostInvoicesWithAttachment` · `PostAcceptedInvoices` · `PostRejectedInvoices` ·
 `PostCanceledInvoices` · `GetAcceptedInvoices` · `GetRejectedInvoices` · `GetInvoicesBySeriaNumber` ·
@@ -66,6 +69,7 @@ var invoice = new Invoice
     SupplierIdno = "1002600001257",
     BuyerIdno    = "1002600003354",
     DeliveryDate = DateTimeOffset.UtcNow,
+    CreationMotive = CreationMotive.Delivery,   // CreationMotiv, required by the schema
     CorrelationId = "our-id-42",
     Lines =
     [
@@ -102,6 +106,12 @@ Collected so you do not have to rediscover them.
 6. **Cancellation is only allowed from the statuses the platform permits**, which is narrower than
    the enum suggests.
 7. **One credential set per legal entity**, not one per installation. An accounting firm holds many.
+8. **`CreationMotiv` is required by the schema and missing from the guide's example.** 4 (delivery)
+   or 5 (non-delivery) for a VAT payer, 1 to 3 for an issuer that is not. Without it the document
+   is invalid. The tests validate every payload against `spec/sfs/TaxInvoiceSchema.xsd`.
+9. **SFS's own example XML files are not valid against SFS's own schema.** See `spec/sfs/README.md`.
+10. **The test environment answers `403` to any address SFS has not registered**, the API and the
+    web interface alike. Production serves its WSDL to anyone.
 
 ## Contributing
 
@@ -113,6 +123,8 @@ Please do **not** include real IDNO codes, company names or invoice data in issu
 
 ## Related
 
+- [`spec/sfs/`](../spec/sfs/README.md): SFS's schema, examples, classifiers, guides and WSDL, as
+  received, with the test and production addresses.
 - [konta-rulebook](https://github.com/December-Capital/konta-rulebook) — Moldovan fiscal law as
   citable, effective-dated data.
 - [Ghid de integrare semiautomatizat SIA „e-Factura”](https://efactura.sfs.md/Help/Ghid_integrare_Semi_Automatizata.pdf)

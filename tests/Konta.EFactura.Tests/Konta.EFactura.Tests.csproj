@@ -24,6 +24,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- SFS's own schema, so every payload the tests build is checked against it. -->
+    <None Include="../../spec/sfs/TaxInvoiceSchema.xsd" Link="sfs/TaxInvoiceSchema.xsd" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="../../src/Konta.EFactura/Konta.EFactura.csproj" />
   </ItemGroup>
 

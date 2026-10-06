@@ -21,6 +21,12 @@ public sealed class Invoice
     public string? BuyerBankAccount { get; init; }
 
     /// <summary>
+    /// Why the invoice is issued (<c>CreationMotiv</c>), which the schema requires on every
+    /// document. A VAT payer issues for a delivery or a non-delivery.
+    /// </summary>
+    public required CreationMotive CreationMotive { get; init; }
+
+    /// <summary>
     /// Our own identifier, echoed back in <c>AdditionalInformation/id</c>. Set it: it is the only
     /// way to reconcile a submission against a platform document before series and number exist.
     /// </summary>
@@ -37,6 +43,12 @@ public sealed class Invoice
     {
         AssertIdno(SupplierIdno, nameof(SupplierIdno));
         AssertIdno(BuyerIdno, nameof(BuyerIdno));
+
+        if (!Enum.IsDefined(CreationMotive))
+        {
+            throw new InvalidOperationException(
+                string.Create(CultureInfo.InvariantCulture, $"CreationMotive {(int)CreationMotive} is not one the platform knows."));
+        }
 
         if (Lines.Count == 0)
         {
@@ -66,6 +78,29 @@ public sealed class Invoice
                 string.Create(CultureInfo.InvariantCulture, $"{field} must be 13 digits; got '{idno}'."));
         }
     }
+}
+
+/// <summary>
+/// Why a fiscal invoice is issued, as the platform numbers it (<c>CreationMotiv</c> in
+/// <c>TaxInvoiceSchema.xsd</c>). The first three are for issuers not registered for VAT, the last
+/// two for VAT payers.
+/// </summary>
+public enum CreationMotive
+{
+    /// <summary>Not a VAT payer: documenting supplies, or moving assets between parts of one entity.</summary>
+    SupplyDocumentation = 1,
+
+    /// <summary>Not a VAT payer: re-invoicing expenses that are compensated.</summary>
+    ExpenseReinvoicing = 2,
+
+    /// <summary>Not a VAT payer: a combined invoice, with compensated expenses on a separate line.</summary>
+    Combined = 3,
+
+    /// <summary>VAT payer: a supply ("Livrare").</summary>
+    Delivery = 4,
+
+    /// <summary>VAT payer: not a supply ("Non-livrare").</summary>
+    NonDelivery = 5,
 }
 
 /// <summary>One invoice line.</summary>

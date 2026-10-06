@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="windows-1251"?>
+<Documents>
+  <Document>
+    <SupplierInfo>
+      <DeliveryDate>2014-08-19T00:00:00.804Z</DeliveryDate>
+      <Supplier IDNO="1002600001257" Title="denumirea" Address="adresa" TaxpayerType="1">
+        <BankAccount BranchTitle="BC'Victoriabank'S.A. fil.nr.10 Ungheni" BranchCode="cod banca" Account="cont bancar">
+        </BankAccount>
+      </Supplier>
+      <Buyer IDNO="cod fiscal" Title="denumirea" Address="adresa" TaxpayerType="1">
+        <BankAccount BranchTitle="BC'Victoriabank'S.A. fil.nr.10 Ungheni" BranchCode="cod banca" Account="cont bancar">
+        </BankAccount>
+      </Buyer>
+      <Transporter IDNO="cod fiscal" Title="denumirea" Address="adresa" TaxpayerType="1">
+        <BankAccount BranchTitle="BC'Victoriabank'S.A. fil.nr.10 Ungheni" BranchCode="cod banca" Account="cont bancar">
+        </BankAccount>
+      </Transporter>
+      <AttachedDocuments>Documente anexate</AttachedDocuments>
+      <Notes>Comentarii</Notes>
+      <DelegateSeria>Seria</DelegateSeria>
+      <DelegateNumber>NR</DelegateNumber>
+      <DelegateName>Delegatul</DelegateName>
+      <DelegateDate>2014-08-19T00:00:00Z</DelegateDate>// In cazul in care data lipse?te, nodul dat nu trebuie sa fie prezent in XML
+      <VehicleLogbook>
+        <IssuedDate>2014-08-19T00:00:00Z</IssuedDate>// In cazul in care data lipse?te, nodul dat nu trebuie sa fie prezent in XML
+        <Seria>Seria</Seria>
+        <Number>Numar</Number>
+      </VehicleLogbook>
+      <LoadingPoint>Punct incarcare</LoadingPoint>
+      <UnloadingPoint>Punct descarcare</UnloadingPoint>
+      <Redirections>Redirijari</Redirections>
+      <Merchandises>
+        <Row Code="1" Name="denumirea" UnitOfMeasure="daa" Quantity="1" UnitPriceWithoutTVA="3123" TotalPriceWithoutTVA="3123.00" TVA="20" TotalTVA="624.60" TotalPrice="3747.60" OtherInfo="alta info" PackageType="tip ambalaj" NumberOfPlaces="15" GrossWeight="100" />
+      </Merchandises>
+      <CreationMotiv>1</CreationMotiv>
+    </SupplierInfo>
+    <AdditionalInformation>
+      <field>FEAWDADA122</field>
+    </AdditionalInformation>
+  </Document>
+</Documents>

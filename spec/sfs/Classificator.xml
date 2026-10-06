@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="windows-1251"?>
+<Items>
+  <Item Code="1" Title="Test1" UnitMeasureId="" TVAId="" ></Item>
+  <Item Code="2" Title="Test2" UnitMeasureId="1" TVAId="" ></Item>
+  <Item Code="3" Title="Test3" UnitMeasureId="" TVAId="2" ></Item>
+  <Item Code="4" Title="Test4" UnitMeasureId="" TVAId="2" ></Item>
+  <Item Code="5" Title="Test5" UnitMeasureId="" TVAId="3" ></Item>
+  <Item Code="6" Title="Test6" UnitMeasureId="" TVAId="3" ></Item>
+</Items>

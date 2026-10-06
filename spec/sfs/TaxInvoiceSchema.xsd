@@ -1,0 +1,582 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<xs:schema xmlns:p3="http://www.w3.org/2001/XMLSchema-instance" attributeFormDefault="unqualified" elementFormDefault="qualified" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:element name="Documents">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="Document" maxOccurs="unbounded" minOccurs="1">
+          <xs:annotation>
+            <xs:documentation> Notă:Generat de către sistem /Создано системой -  înseamnă că nu este necesar pentru import în eFactura, se generează de către sistem la exportarea xml facturilor din sistem</xs:documentation>
+          </xs:annotation>
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="SupplierInfo" minOccurs="1" maxOccurs="1">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element type="xs:string" name="Seria" minOccurs="0" maxOccurs="1" >
+                      <xs:annotation>
+                        <xs:documentation>Seria facturii/Серия накладной se importă folosind API dacă factura este semnată - se utilizează la  import/export</xs:documentation>
+                      </xs:annotation>
+                    </xs:element>
+                    <xs:element type="xs:string" name="Number"  minOccurs="0" maxOccurs="1">
+                      <xs:annotation>
+                        <xs:documentation>Număr facturii/Номер накладной se importă folosind API dacă factura este semnată - la  import(API)/export</xs:documentation>
+                      </xs:annotation>
+                    </xs:element>
+                    <xs:element type="xs:dateTime" name="IssuedDate" minOccurs="0" maxOccurs="1">
+                      <xs:annotation>
+                        <xs:documentation>Data Eliberării/Дата выписки - se importă folosind API dacă factura este semnată - la  import(API)/export</xs:documentation>
+                      </xs:annotation>
+                    </xs:element>
+                    <xs:element type="xs:dateTime" name="DeliveryDate" minOccurs="1" maxOccurs="1">
+                      <xs:annotation>
+                        <xs:documentation>Data Livrării/Дата поставки - se utilizează la   import/export</xs:documentation>
+                      </xs:annotation>
+                    </xs:element>
+                    <xs:element name="Supplier" minOccurs="1" maxOccurs="1">
+                      <xs:annotation>
+                        <xs:documentation>Furnizor/Поставщик</xs:documentation>
+                      </xs:annotation>
+                      <xs:complexType>
+                        <xs:sequence>
+                          <xs:element name="BankAccount" minOccurs="0" maxOccurs="1">
+                            <xs:annotation>
+                              <xs:documentation>Contul bancar/Банковский счет - se utilizează la   import/export</xs:documentation>
+                            </xs:annotation>
+                            <xs:complexType>
+                              <xs:sequence>
+                                <xs:element type="xs:string" name="IsManual" minOccurs="0" maxOccurs="1">
+                                  <xs:annotation>
+                                    <xs:documentation>Generat de către sistem /Создано системой - se utilizează la  export</xs:documentation>
+                                  </xs:annotation>
+                                </xs:element>
+                              </xs:sequence>
+                              <xs:attribute name="Account" type="xs:string" use="optional"  >
+                                <xs:annotation>
+                                  <xs:documentation>Contul Bancar/Банковский счет - se utilizează la   import/export</xs:documentation>
+                                </xs:annotation>
+                              </xs:attribute>
+                              <xs:attribute name="BranchTitle" type="xs:string" use="optional"  >
+                                <xs:annotation>
+                                  <xs:documentation>Denumirea băncii/Найменование банка - se utilizează la   import/export</xs:documentation>
+                                </xs:annotation>
+                              </xs:attribute>
+                              <xs:attribute name="BranchCode" type="xs:string" use="optional"  >
+                                <xs:annotation>
+                                  <xs:documentation>Codul Băncii/Код банка - se utilizează la   import/export</xs:documentation>
+                                </xs:annotation>
+                              </xs:attribute>
+                            </xs:complexType>
+                          </xs:element>
+                          <xs:element type="xs:string" name="RiskAnalysisValid" nillable="true" minOccurs="0" maxOccurs="1">
+                            <xs:annotation>
+                              <xs:documentation>Generat de către sistem /Создано системой - se utilizează la  export</xs:documentation>
+                            </xs:annotation>
+                          </xs:element>
+                          <xs:element type="xs:string" name="IsRegistered" minOccurs="0" maxOccurs="1">
+                            <xs:annotation>
+                              <xs:documentation>Generat de către sistem /Создано системой - se utilizează la  export</xs:documentation>
+                            </xs:annotation>
+                          </xs:element>
+                          <xs:element type="xs:string" name="IsValid" minOccurs="0" maxOccurs="1">
+                            <xs:annotation>
+                              <xs:documentation>Generat de către sistem /Создано системой - se utilizează la  export</xs:documentation>
+                            </xs:annotation>
+                          </xs:element>
+                        </xs:sequence>
+                        <xs:attribute name="IDNO" type="xs:unsignedLong" use="required"  >
+                          <xs:annotation>
+                            <xs:documentation>Codul Fiscal/Фискальный Код - se utilizează la   import/export</xs:documentation>
+                          </xs:annotation>
+                        </xs:attribute>
+                        <xs:attribute name="Title" type="xs:string" use="optional"  >
+                          <xs:annotation>
+                            <xs:documentation>Denumirea contribuabilului/Найменование налогоплательщика- se utilizează la   import/export</xs:documentation>
+                          </xs:annotation>
+                        </xs:attribute>
+                        <xs:attribute name="CodTVA" type="xs:string" use="optional"  >
+                          <xs:annotation>
+                            <xs:documentation>Nr TVA/Нр.ндс - se utilizează la   export</xs:documentation>
+                          </xs:annotation>
+                        </xs:attribute>
+                        <xs:attribute name="NResident" type="xs:boolean" use="optional"  >
+                          <xs:annotation>
+                            <xs:documentation>Generat de către sistem /Создано системой - se utilizează la  export - se utilizează la   export</xs:documentation>
+                          </xs:annotation>
+                        </xs:attribute>
+                        <xs:attribute name="IsSupplierOnly" type="xs:boolean" use="optional"  >
+                          <xs:annotation>
+                            <xs:documentation>Generat de către sistem /Создано системой - se utilizează la  export - se utilizează la   export</xs:documentation>
+                          </xs:annotation>
+                        </xs:attribute>
+                        <xs:attribute name="Address" type="xs:string" use="optional"  >
+                          <xs:annotation>
+                            <xs:documentation>Adresa/Адрес - se utilizează la   import/export</xs:documentation>
+                          </xs:annotation>
+                        </xs:attribute>
+                        <xs:attribute name="TaxpayerType" type="xs:int" use="optional"  >
+                          <xs:annotation>
+                            <xs:documentation>Tip contribuabilului/Тип налогоплательщика 1-Juridic,2-Persoana Fizică,3-Nerezident - se utilizează la   import/export</xs:documentation>
+                          </xs:annotation>
+                        </xs:attribute>
+                      </xs:complexType>
+
+                    </xs:element>
+                    <xs:element name="Buyer" minOccurs="1" maxOccurs="1">
+                      <xs:annotation>
+                        <xs:documentation>Cumpărător/Покупатель</xs:documentation>
+                      </xs:annotation>
+                      <xs:complexType>
+                        <xs:sequence>
+                          <xs:element name="BankAccount" minOccurs="0" maxOccurs="1">
+                            <xs:annotation>
+                              <xs:documentation>Contul bancar/Банковский счет - se utilizează la   import/export</xs:documentation>
+                            </xs:annotation>
+                            <xs:complexType>
+                              <xs:sequence>
+                                <xs:element type="xs:string" name="IsManual" minOccurs="0" maxOccurs="1">
+                                  <xs:annotation>
+                                    <xs:documentation>Generat de către sistem /Создано системой - se utilizează la  export - se utilizează la   export</xs:documentation>
+                                  </xs:annotation>
+                                </xs:element>
+                              </xs:sequence>
+                              <xs:attribute name="Account" type="xs:string" use="optional"  >
+                                <xs:annotation>
+                                  <xs:documentation>Contul Bancar/Банковский счет - se utilizează la   import/export</xs:documentation>
+                                </xs:annotation>
+                              </xs:attribute>
+                              <xs:attribute name="BranchTitle" type="xs:string" use="optional"  >
+                                <xs:annotation>
+                                  <xs:documentation>Denumirea băncii/Найменование банка - se utilizează la   import/export</xs:documentation>
+                                </xs:annotation>
+                              </xs:attribute>
+                              <xs:attribute name="BranchCode" type="xs:string" use="optional"  >
+                                <xs:annotation>
+                                  <xs:documentation>Codul Băncii/Код банка - se utilizează la   import/export</xs:documentation>
+                                </xs:annotation>
+                              </xs:attribute>
+                            </xs:complexType>
+                          </xs:element>
+                          <xs:element type="xs:string" name="RiskAnalysisValid" nillable="true" minOccurs="0" maxOccurs="1">
+                            <xs:annotation>
+                              <xs:documentation>Generat de către sistem /Создано системой - se utilizează la  export</xs:documentation>
+                            </xs:annotation>
+                          </xs:element>
+                          <xs:element type="xs:string" name="IsRegistered" minOccurs="0" maxOccurs="1">
+                            <xs:annotation>
+                              <xs:documentation>Generat de către sistem /Создано системой - se utilizează la  export</xs:documentation>
+                            </xs:annotation>
+                          </xs:element>
+                          <xs:element type="xs:string" name="IsValid" minOccurs="0" maxOccurs="1">
+                            <xs:annotation>
+                              <xs:documentation>Generat de către sistem /Создано системой - se utilizează la  export</xs:documentation>
+                            </xs:annotation>
+                          </xs:element>
+                        </xs:sequence>
+                        <xs:attribute name="IDNO" type="xs:string" use="required"  >
+                          <xs:annotation>
+                            <xs:documentation>Codul Fiscal/Фискальный Код  - se utilizează la   import/export</xs:documentation>
+                          </xs:annotation>
+                        </xs:attribute>
+                        <xs:attribute name="Title" type="xs:string" use="optional"  >
+                          <xs:annotation>
+                            <xs:documentation>Denumirea contribuabilului  - se utilizează la   import/export</xs:documentation>
+                          </xs:annotation>
+                        </xs:attribute>
+                        <xs:attribute name="Address" type="xs:string" use="optional"  >
+                          <xs:annotation>
+                            <xs:documentation>Adresa/Адрес  - se utilizează la   import/export</xs:documentation>
+                          </xs:annotation>
+                        </xs:attribute>
+                        <xs:attribute name="TaxpayerType" type="xs:int" use="optional"  >
+                          <xs:annotation>
+                            <xs:documentation>Tip contribuabilului/Тип налогоплательщика 1-Juridic,2-Persoana Fizică,3-Nerezident  - se utilizează la   import/export</xs:documentation>
+                          </xs:annotation>
+                        </xs:attribute>
+                        <xs:attribute name="CodTVA" type="xs:string" use="optional"  >
+                          <xs:annotation>
+                            <xs:documentation>Nr TVA/Нр.ндс  - se utilizează la   export</xs:documentation>
+                          </xs:annotation>
+                        </xs:attribute>
+                        <xs:attribute name="NResident" type="xs:boolean" use="optional"  >
+                          <xs:annotation>
+                            <xs:documentation>Generat de către sistem /Создано системой - se utilizează la  export</xs:documentation>
+                          </xs:annotation>
+                        </xs:attribute>
+                        <xs:attribute name="IsSupplierOnly" type="xs:boolean" use="optional"  >
+                          <xs:annotation>
+                            <xs:documentation>Generat de către sistem /Создано системой - se utilizează la  export</xs:documentation>
+                          </xs:annotation>
+                        </xs:attribute>
+                      </xs:complexType>
+                    </xs:element>
+                    <xs:element name="Transporter" minOccurs="0" maxOccurs="1">
+                      <xs:annotation>
+                        <xs:documentation>Datele despre Transportator/Транспортировшик</xs:documentation>
+                      </xs:annotation>
+                      <xs:complexType>
+                        <xs:sequence>
+                          <xs:element name="BankAccount" minOccurs="0" maxOccurs="1">
+                            <xs:annotation>
+                              <xs:documentation>Date despre Contul bancar/Банковский счет</xs:documentation>
+                            </xs:annotation>
+                            <xs:complexType>
+                              <xs:sequence>
+                                <xs:element type="xs:string" name="IsManual" minOccurs="0" maxOccurs="1">
+                                  <xs:annotation>
+                                    <xs:documentation>Generat de către sistem /Создано системой - se utilizează la  export</xs:documentation>
+                                  </xs:annotation>
+                                </xs:element>
+                              </xs:sequence>
+                              <xs:attribute name="Account" type="xs:string" use="optional"  >
+                                <xs:annotation>
+                                  <xs:documentation>Contul Bancar/Банковский счет</xs:documentation>
+                                </xs:annotation>
+                              </xs:attribute>
+                              <xs:attribute name="BranchTitle" type="xs:string" use="optional"  >
+                                <xs:annotation>
+                                  <xs:documentation>Denumirea băncii/Найменование банка</xs:documentation>
+                                </xs:annotation>
+                              </xs:attribute>
+                              <xs:attribute name="BranchCode" type="xs:string" use="optional"  >
+                                <xs:annotation>
+                                  <xs:documentation>Codul Băncii/Код банка</xs:documentation>
+                                </xs:annotation>
+                              </xs:attribute>
+                            </xs:complexType>
+                          </xs:element>
+                          <xs:element type="xs:string" name="RiskAnalysisValid" nillable="true" minOccurs="0" maxOccurs="1">
+                            <xs:annotation>
+                              <xs:documentation>Generat de către sistem /Создано системой - se utilizează la  export</xs:documentation>
+                            </xs:annotation>
+                          </xs:element>
+                          <xs:element type="xs:string" name="IsRegistered" minOccurs="0" maxOccurs="1">
+                            <xs:annotation>
+                              <xs:documentation>Generat de către sistem /Создано системой - se utilizează la  export</xs:documentation>
+                            </xs:annotation>
+                          </xs:element>
+                          <xs:element type="xs:string" name="IsValid" minOccurs="0" maxOccurs="1">
+                            <xs:annotation>
+                              <xs:documentation>Generat de către sistem /Создано системой - se utilizează la  export</xs:documentation>
+                            </xs:annotation>
+                          </xs:element>
+                        </xs:sequence>
+                        <xs:attribute name="IDNO" type="xs:string" use="optional"  >
+                          <xs:annotation>
+                            <xs:documentation>Codul Fiscal/Фискальный Код  - se utilizează la   import/export</xs:documentation>
+                          </xs:annotation>
+                        </xs:attribute>
+                        <xs:attribute name="Title" type="xs:string" use="optional"  >
+                          <xs:annotation>
+                            <xs:documentation>Denumirea contribuabilului  - se utilizează la   import/export</xs:documentation>
+                          </xs:annotation>
+                        </xs:attribute>
+                        <xs:attribute name="Address" type="xs:string" use="optional"  >
+                          <xs:annotation>
+                            <xs:documentation>Adresa/Адрес  - se utilizează la   import/export</xs:documentation>
+                          </xs:annotation>
+                        </xs:attribute>
+                        <xs:attribute name="TaxpayerType" type="xs:int" use="optional"  >
+                          <xs:annotation>
+                            <xs:documentation>Tip contribuabilului/Тип налогоплательщика 1-Juridic,2-Persoana Fizică,3-Nerezident  - se utilizează la   import/export</xs:documentation>
+                          </xs:annotation>
+                        </xs:attribute>
+                        <xs:attribute name="CodTVA" type="xs:string" use="optional"  >
+                          <xs:annotation>
+                            <xs:documentation>Nr TVA/Нр.ндс// La importare se ignorează</xs:documentation>
+                          </xs:annotation>
+                        </xs:attribute>
+                        <xs:attribute name="NResident" type="xs:boolean" use="optional"  >
+                          <xs:annotation>
+                            <xs:documentation>Generat de către sistem /Создано системой - se utilizează la  export</xs:documentation>
+                          </xs:annotation>
+                        </xs:attribute>
+                        <xs:attribute name="IsSupplierOnly" type="xs:boolean" use="optional"  >
+                          <xs:annotation>
+                            <xs:documentation>Generat de către sistem /Создано системой - se utilizează la  export</xs:documentation>
+                          </xs:annotation>
+                        </xs:attribute>
+                      </xs:complexType>
+                    </xs:element>
+                    <xs:element type="xs:string" name="AttachedDocuments" minOccurs="0" maxOccurs="1">
+                      <xs:annotation>
+                        <xs:documentation>Documente atașate/Прилагаемые документы   - se utilizează la   import/export</xs:documentation>
+                      </xs:annotation>
+                    </xs:element>
+                    <xs:element type="xs:string" name="Notes"  minOccurs="0" maxOccurs="1">
+                      <xs:annotation>
+                        <xs:documentation>Comentarii/Примечания   - se utilizează la   import/export</xs:documentation>
+                      </xs:annotation>
+                    </xs:element>
+                    <xs:element name="DelegateSeria" type="xs:string" minOccurs="0" maxOccurs="1">
+                      <xs:annotation>
+                        <xs:documentation>Delegație Seria/Доверенность Серия   - se utilizează la   import/export</xs:documentation>
+                      </xs:annotation>
+                    </xs:element>
+                    <xs:element name="DelegateNumber" type="xs:string" minOccurs="0" maxOccurs="1">
+                      <xs:annotation>
+                        <xs:documentation>Delegație număr/Доверенность номер  - se utilizează la   import/export</xs:documentation>
+                      </xs:annotation>
+                    </xs:element>
+                    <xs:element type="xs:string" name="DelegateName"  minOccurs="0" maxOccurs="1">
+                      <xs:annotation>
+                        <xs:documentation>Delegatul/Делегированный  - se utilizează la   import/export</xs:documentation>
+                      </xs:annotation>
+                    </xs:element>
+                    <xs:element type="xs:dateTime" name="DelegateDate"  minOccurs="0" maxOccurs="1">
+                      <xs:annotation>
+                        <xs:documentation>Data/Дата  - se utilizează la   import/export</xs:documentation>
+                      </xs:annotation>
+                    </xs:element>
+                    <xs:element name="VehicleLogbook" minOccurs="0" maxOccurs="1">
+                      <xs:annotation>
+                        <xs:documentation>Foaia de parcurs/Путевой лист</xs:documentation>
+                      </xs:annotation>
+                      <xs:complexType>
+                        <xs:sequence>
+                          <xs:element name="IssuedDate" type="xs:dateTime" minOccurs="0" maxOccurs="1">
+                            <xs:annotation>
+                              <xs:documentation>Data  - se utilizează la   import/export</xs:documentation>
+                            </xs:annotation>
+                          </xs:element>
+                          <xs:element name="Seria" type="xs:string"  minOccurs="0" maxOccurs="1">
+                            <xs:annotation>
+                              <xs:documentation>Seria/Серия  - se utilizează la   import/export</xs:documentation>
+                            </xs:annotation>
+                          </xs:element>
+                          <xs:element name="Number" type="xs:string"  minOccurs="0" maxOccurs="1">
+                            <xs:annotation>
+                              <xs:documentation>Număr/Номер  - se utilizează la   import/export</xs:documentation>
+                            </xs:annotation>
+                          </xs:element>
+                        </xs:sequence>
+                      </xs:complexType>
+                    </xs:element>
+                    <xs:element type="xs:string" name="LoadingPoint"  minOccurs="0" maxOccurs="1">
+                      <xs:annotation>
+                        <xs:documentation>Punct de încărcare/Пункт погрузки  - se utilizează la   import/export</xs:documentation>
+                      </xs:annotation>
+                    </xs:element>
+                    <xs:element type="xs:string" name="UnloadingPoint"  minOccurs="0" maxOccurs="1">
+                      <xs:annotation>
+                        <xs:documentation>Punct de descărcare/Пункт разгрузки  - se utilizează la   import/export</xs:documentation>
+                      </xs:annotation>
+                    </xs:element>
+                    <xs:element type="xs:string" name="Redirections"  minOccurs="0" maxOccurs="1">
+                      <xs:annotation>
+                        <xs:documentation>Redirijări/Переадресеровки  - se utilizează la   import/export</xs:documentation>
+                      </xs:annotation>
+                    </xs:element>
+                    <xs:element name="Total" type="xs:decimal" minOccurs="0" maxOccurs="1">
+                      <xs:annotation>
+                        <xs:documentation>Total pe factura fiscală/Всего ( по налоговой накланой) este opțional la import - se utilizează la   import/export</xs:documentation>
+                      </xs:annotation>
+                    </xs:element>
+                    <xs:element name="TotalTVA" type="xs:decimal" minOccurs="0" maxOccurs="1">
+                      <xs:annotation>
+                        <xs:documentation>Total TVA/Всего НДС este opțional la import - se utilizează la   import/export</xs:documentation>
+                      </xs:annotation>
+                    </xs:element>
+                    <xs:element name="Merchandises" minOccurs="1" maxOccurs="1">
+                      <xs:annotation>
+                        <xs:documentation>Lista mărfurilor, serviciilor/Список товаров,услуг</xs:documentation>
+                      </xs:annotation>
+                      <xs:complexType>
+                        <xs:sequence>
+                          <xs:element name="Row" minOccurs="1" maxOccurs="unbounded">
+                            <xs:annotation>
+                              <xs:documentation>Rînd/Ряд</xs:documentation>
+                            </xs:annotation>
+                            <xs:complexType>
+                              <xs:attribute name="Code" type="xs:string" use="optional"  >
+                                <xs:annotation>
+                                  <xs:documentation>Cod nomenclator al mărfii  - se utilizează la   import/export</xs:documentation>
+                                </xs:annotation>
+                              </xs:attribute>
+                              <xs:attribute name="Name" type="xs:string" use="required"  >
+                                <xs:annotation>
+                                  <xs:documentation>Denumirea mărfurilor, serviciilor şi cod nomenclator al mărfii  - se utilizează la   import/export</xs:documentation>
+                                </xs:annotation>
+                              </xs:attribute>
+                              <xs:attribute name="UnitOfMeasure" type="xs:string" use="required"  >
+                                <xs:annotation>
+                                  <xs:documentation>Unitate de măsură/Единица измерения  - se utilizează la   import/export</xs:documentation>
+                                </xs:annotation>
+                              </xs:attribute>
+                              <xs:attribute name="Quantity" type="xs:decimal" use="required"  >
+                                <xs:annotation>
+                                  <xs:documentation>Cantitatea/Количество  - se utilizează la   import/export</xs:documentation>
+                                </xs:annotation>
+                              </xs:attribute>
+                              <xs:attribute name="UnitPriceWithoutTVA" type="xs:decimal" use="required"  >
+                                <xs:annotation>
+                                  <xs:documentation>Preţ unitar fără TVA, Цена единицы без НДС  - se utilizează la   import/export </xs:documentation>
+                                </xs:annotation>
+                              </xs:attribute>
+                              <xs:attribute name="TotalPriceWithoutTVA" type="xs:decimal" use="required"  >
+                                <xs:annotation>
+                                  <xs:documentation>Valoarea totală fără TVA/Общая сумма без НДС   - se utilizează la   import/export</xs:documentation>
+                                </xs:annotation>
+                              </xs:attribute>
+                              <xs:attribute name="TVA" type="xs:string" use="required"  >
+                                <xs:annotation>
+                                  <xs:documentation>Cota TVA/Ставка НДС   - se utilizează la   import/export</xs:documentation>
+                                </xs:annotation>
+                              </xs:attribute>
+                              <xs:attribute name="TotalTVA" type="xs:decimal" use="required"  >
+                                <xs:annotation>
+                                  <xs:documentation>Suma totală a TVA/Общая сумма НДС   - se utilizează la   import/export</xs:documentation>
+                                </xs:annotation>
+                              </xs:attribute>
+                              <xs:attribute name="TotalPrice" type="xs:decimal" use="required" >
+                                <xs:annotation>
+                                  <xs:documentation>Valoarea mărfurilor, serviciior/Стоимость товаров  - se utilizează la   import/export</xs:documentation>
+                                </xs:annotation>
+                              </xs:attribute>
+                              <xs:attribute name="OtherInfo" type="xs:string"    >
+                                <xs:annotation>
+                                  <xs:documentation>
+                                    Altă informaţie/Другая информация   - se utilizează la   import/export
+                                  </xs:documentation>
+                                </xs:annotation>
+                              </xs:attribute>
+                              <xs:attribute name="PackageType" type="xs:string"    >
+                                <xs:annotation>
+                                  <xs:documentation>
+                                    Tip ambalaj/Тип упаковки   - se utilizează la   import/export
+                                  </xs:documentation>
+                                </xs:annotation>
+                              </xs:attribute>
+                              <xs:attribute name="NumberOfPlaces" type="xs:string"   >
+                                <xs:annotation>
+                                  <xs:documentation>
+                                    Număr locuri/Коли-чество мест   - se utilizează la   import/export
+                                  </xs:documentation>
+                                </xs:annotation>
+                              </xs:attribute>
+                              <xs:attribute name="GrossWeight" type="xs:string"    >
+                                <xs:annotation>
+                                  <xs:documentation>
+                                    Masa brută, tone/Масса брутто, тонн   - se utilizează la   import/export
+                                  </xs:documentation>
+                                </xs:annotation>
+                              </xs:attribute>
+                              <xs:attribute name="FarmSeriaNumber" type="xs:string" use="optional">
+                                <xs:annotation>
+                                  <xs:documentation>
+                                    Serie medicament Valabil/Серия медикамент Гoдeн дo- se utilizează la   import/export
+                                  </xs:documentation>
+                                </xs:annotation>
+                              </xs:attribute>
+                              <xs:attribute name="FarmCode" type="xs:string" use="optional">
+                                <xs:annotation>
+                                  <xs:documentation>
+                                    Cod nomenclator/классификационный  код - se utilizează la   import/export
+                                  </xs:documentation>
+                                </xs:annotation>
+                              </xs:attribute>
+                              <xs:attribute name="FarmDate" type="xs:string" use="optional">
+                                <xs:annotation>
+                                  <xs:documentation>
+                                    Analiza Data / Анализ Дата - se utilizează la   import/export
+                                  </xs:documentation>
+                                </xs:annotation>
+                              </xs:attribute>
+                              <xs:attribute name="FarmPrice" type="xs:string" use="optional">
+                                <xs:annotation>
+                                  <xs:documentation>
+                                    Preț achiziție/Закупочная цена - se utilizează la   import/export
+                                  </xs:documentation>
+                                </xs:annotation>
+                              </xs:attribute>
+                              <xs:attribute name="FarmAdditionalPrice" type="xs:string" use="optional">
+                                <xs:annotation>
+                                  <xs:documentation>
+                                    Adaos comercial / Торговая надбавка - se utilizează la   import/export
+                                  </xs:documentation>
+                                </xs:annotation>
+                              </xs:attribute>
+                            </xs:complexType>
+                          </xs:element>
+                        </xs:sequence>
+                      </xs:complexType>
+                    </xs:element>
+                    <xs:element type="xs:boolean" name="IsFarma" minOccurs="0" maxOccurs="1" >
+                      <xs:annotation>
+                        <xs:documentation>Indicator pentru facturi farmaceutice - se utilizează la  import/export</xs:documentation>
+                      </xs:annotation>
+                    </xs:element>
+                    <xs:element type="xs:int" name="CreationMotiv" minOccurs="1" maxOccurs="1" >
+                      <xs:annotation>
+                        <xs:documentation>Motivul crearii facturii fiscale - pentru neplatitor TVA este (1 - Eliberarea facturii fiscale pentru documentarea livrărilor, sau în cazul transportării activelor în cadrul entitații dezintegrate din punc de vedere teritorial, 2 - Eliberarea facturii fiscale în vederea refacturarii cheltuielilor compensate în scopul compensării cheltuielilor în caiză, 3 - Eliberarea facturii fiscale combinate în care este posibilă refacturarea cheltuelilor compensate prin înscrierea lor într-un rînd separat îin factura fiscală eliberată ăentru livrarea de mărfuri, servicii), pentru platitori TVA este (4 - Livrare, 5 -	Non-livrare )</xs:documentation>
+                      </xs:annotation>
+                    </xs:element>
+                    <xs:element type="xs:string" name="NrContractMTender" minOccurs="0" maxOccurs="1" >
+                      <xs:annotation>
+                        <xs:documentation>Numărul contractului de achiziții publice înregistrat la trezorerie</xs:documentation>
+                      </xs:annotation>
+                    </xs:element>
+                    <xs:element type="xs:dateTime" name="DataContractMTender" minOccurs="0" maxOccurs="1" >
+                      <xs:annotation>
+                        <xs:documentation>Data contractului de achiziții publice înregistrat la trezorerie</xs:documentation>
+                      </xs:annotation>
+                    </xs:element>
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+              <xs:element name="AdditionalInformation" minOccurs="0">
+                <xs:annotation>
+                  <xs:documentation>Informația adițională a contribuabilului/Дополнительная инфомрация от налогоплательщика   - se utilizează la   import/export</xs:documentation>
+                </xs:annotation>
+                <xs:complexType>
+                  <xs:sequence maxOccurs="unbounded">
+                    <xs:any processContents="skip"/>
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+              <xs:element name="Signatures" minOccurs="0" maxOccurs="1">
+                <xs:annotation>
+                  <xs:documentation>Semnăturile/Подписи - se utilizează la import folosind API</xs:documentation>
+                </xs:annotation>
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="SignatureContent" minOccurs="1" maxOccurs="unbounded">
+                      <xs:annotation>
+                        <xs:documentation>Conținutul semnăturilor/Содержание подписей</xs:documentation>
+                      </xs:annotation>
+                      <xs:complexType>
+                        <xs:sequence>
+                          <xs:element name="SignedDoc" minOccurs="1" maxOccurs="1">
+                            <xs:complexType>
+                              <xs:sequence>
+                                <xs:element name="hash" >
+                                  <xs:complexType>
+                                    <xs:simpleContent>
+                                      <xs:extension base="xs:string">
+                                        <xs:attribute name="Id" type="xs:string"  use="required" ></xs:attribute>
+                                      </xs:extension>
+                                    </xs:simpleContent>
+                                  </xs:complexType>
+                                </xs:element>
+                                <xs:element name="Signature" minOccurs="1" maxOccurs="1" >
+                                  <xs:complexType>
+                                    <xs:sequence maxOccurs="unbounded">
+                                      <xs:any processContents="skip"/>
+                                    </xs:sequence>
+                                  </xs:complexType>
+                                </xs:element>
+                              </xs:sequence>
+                            </xs:complexType>
+                          </xs:element>
+                        </xs:sequence>
+                      </xs:complexType>
+                    </xs:element>
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>

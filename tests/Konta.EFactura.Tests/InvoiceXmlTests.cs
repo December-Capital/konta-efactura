@@ -13,6 +13,7 @@ public sealed class InvoiceXmlTests
         SupplierBankAccount = "22241410046",
         BuyerBankAccount = "2224710SV12365037100",
         DeliveryDate = new DateTimeOffset(2026, 9, 30, 0, 0, 0, TimeSpan.Zero),
+        CreationMotive = CreationMotive.Delivery,
         CorrelationId = "konta-1",
         Lines = lines,
     };
@@ -103,6 +104,7 @@ public sealed class InvoiceXmlTests
             SupplierIdno = "123",
             BuyerIdno = "1002600003354",
             DeliveryDate = DateTimeOffset.UnixEpoch,
+            CreationMotive = CreationMotive.Delivery,
             Lines = [Line()],
         };
 
@@ -117,6 +119,7 @@ public sealed class InvoiceXmlTests
             SupplierIdno = "1002600001257",
             BuyerIdno = "1002600003354",
             DeliveryDate = DateTimeOffset.UnixEpoch,
+            CreationMotive = CreationMotive.Delivery,
             Lines = [],
         };
 

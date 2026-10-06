@@ -8,7 +8,8 @@ namespace Konta.EFactura;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The schema is SFS's own, documented in the semi-automated integration guide (Chișinău, 2025).
+/// The schema is SFS's own: <c>spec/sfs/TaxInvoiceSchema.xsd</c>, which the tests validate every
+/// payload against, and the semi-automated integration guide (Chișinău, 2025).
 /// It is <b>not</b> UBL and not EN 16931, despite Moldova's stated direction towards Peppol for
 /// cross-border trade — so treat this as one serialiser among future others, never as your
 /// application's internal model.
@@ -73,7 +74,10 @@ public static class InvoiceXml
             new XElement("DeliveryDate", invoice.DeliveryDate.ToString("yyyy-MM-ddTHH:mm:ss.fffZ", Wire)),
             Party("Supplier", invoice.SupplierIdno, invoice.SupplierBankAccount),
             Party("Buyer", invoice.BuyerIdno, invoice.BuyerBankAccount),
-            new XElement("Merchandises", invoice.Lines.Select(Row)));
+            new XElement("Merchandises", invoice.Lines.Select(Row)),
+
+            // Required by TaxInvoiceSchema.xsd, after Merchandises; the guide's example omits it.
+            new XElement("CreationMotiv", ((int)invoice.CreationMotive).ToString(Wire)));
 
         var document = new XElement("Document", supplierInfo);
 
