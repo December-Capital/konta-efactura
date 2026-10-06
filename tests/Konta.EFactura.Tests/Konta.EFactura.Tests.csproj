@@ -26,6 +26,7 @@
   <ItemGroup>
     <!-- SFS's own schema, so every payload the tests build is checked against it. -->
     <None Include="../../spec/sfs/TaxInvoiceSchema.xsd" Link="sfs/TaxInvoiceSchema.xsd" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../spec/sfs/Service.wsdl" Link="sfs/Service.wsdl" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

@@ -24,4 +24,16 @@
     <None Include="../../README.md" Pack="true" PackagePath="/" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="Konta.EFactura.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- WCF client for the generated contract in Generated/, from spec/sfs/Service.wsdl. -->
+    <PackageReference Include="System.ServiceModel.Http" Version="8.1.2" />
+    <PackageReference Include="System.ServiceModel.Primitives" Version="8.1.2" />
+    <!-- The WCF packages bring 8.0.2, which has known high-severity advisories; pin a patched one. -->
+    <PackageReference Include="System.Security.Cryptography.Xml" Version="9.0.20" />
+  </ItemGroup>
+
 </Project>

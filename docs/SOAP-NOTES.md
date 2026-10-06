@@ -21,17 +21,36 @@ client.ClientCredentials.UserName.UserName = username;
 client.ClientCredentials.UserName.Password = password;
 ```
 
-Generate the contract from the WSDL with `dotnet-svcutil`, then commit the generated file so a
-change in the service surface shows up as a reviewable diff:
+This is what `EFacturaClient.Binding` does. Construct an `EFacturaClient` with
+`EFacturaEnvironment.Test` or `.Production` and the API user's name and password.
+
+The contract is generated from the committed WSDL and committed itself, so a change in the
+service shows up as a reviewable diff. It is generated `--internal`: the package's public surface is
+`EFacturaClient`, never SFS's wire types. To regenerate after replacing `spec/sfs/Service.wsdl`, from
+the repository root:
 
 ```bash
-dotnet tool install --global dotnet-svcutil
-dotnet-svcutil <wsdl-url> --outputFile src/Konta.EFactura/Generated/EFacturaService.cs
+dotnet tool install --global dotnet-svcutil   # 8.0.0 was used
+rm src/Konta.EFactura/Generated/EFacturaService.cs
+dotnet-svcutil spec/sfs/Service.wsdl --outputDir Generated --outputFile EFacturaService.cs \
+  --namespace "*,Konta.EFactura.Generated" --internal \
+  --projectFile src/Konta.EFactura/Konta.EFactura.csproj --targetFramework net9.0 --sync
+git checkout src/Konta.EFactura/Konta.EFactura.csproj   # svcutil rewrites it with floating versions
 ```
+
+`--outputDir` is relative to the project, not to the current directory. svcutil adds
+`System.ServiceModel.*` at `8.*` and `NetTcp`, which we do not use; the project pins
+`System.ServiceModel.Http` and `.Primitives` at 8.1.2, and `System.Security.Cryptography.Xml` at
+9.0.20 because the 8.0.2 they bring has high-severity advisories. A test fails if the generated
+contract and the WSDL disagree on the operations.
 
 ## To confirm against a test account
 
-- [ ] The endpoint URL for test, and whether production differs by host or by path only.
+- [x] The endpoint URL for test, and whether production differs by host or by path only. By host:
+      `apiefactura-pre.sfs.md` and `efactura-api.sfs.md`, both at `/Service.svc` (SFS's package,
+      2026-10-06). The test host answers 403 until SFS registers the caller's address.
+- [ ] The first `Test` call from a registered address with real test credentials, and what its
+      `Status` values mean.
 - [ ] Whether the session token must be presented explicitly on later calls, or whether WCF's
       per-call credentials are sufficient. The guide says a token is returned; its examples set
       `ClientCredentials` on every call and do nothing visible with the token.

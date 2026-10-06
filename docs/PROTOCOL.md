@@ -9,10 +9,10 @@ Open source because this is the least differentiating and most breakable part of
 accounting product. Every vendor writes it, nobody enjoys it, and when SFS changes something we all
 find out at the same time. Better to find out together.
 
-> **Status: alpha, and not yet verified against the live service.** The XML serialiser and its
-> tests are real and passing. The SOAP client is being built against the published integration
-> guide and has not yet completed a round trip against an SFS test account. Do not put this in
-> front of a paying customer yet.
+> **Status: alpha, and not yet verified against the live service.** The XML serialiser validates
+> against SFS's schema. The SOAP contract is generated from SFS's WSDL and `EFacturaClient` is
+> configured as the guide describes, but no call has reached SFS yet: test access is being set
+> up. Do not put this in front of a paying customer yet.
 
 ## What the protocol actually looks like
 
