@@ -88,6 +88,72 @@ public sealed class LiveTests
             EFacturaActorRole.Supplier, new EFacturaSearch { IssuedFrom = DateTime.Today.AddDays(-30), IssuedTo = DateTime.Today.AddDays(1) }));
     }
 
+    [LivePostFact]
+    public async Task Posted_drafts_wait_for_signing_with_our_id()
+    {
+        // Drafts from earlier runs: a draft appears minutes after posting, not at once.
+        var drafts = await Live("GetInvoicesForSigning", client => client.GetInvoicesForSigningAsync(EFacturaActorRole.Supplier));
+
+        Assert.NotEmpty(drafts);
+        Assert.All(drafts, d =>
+        {
+            Assert.True(d.Found);
+            Assert.Equal(EFacturaInvoiceStatus.Draft, d.Status);
+            Assert.Equal("", d.Id.Number); // a draft has no number until it is signed
+            Assert.StartsWith("konta-", d.CorrelationId, StringComparison.Ordinal);
+        });
+    }
+
+    [LivePostFact]
+    public async Task A_search_finds_drafts_unless_told_another_status()
+    {
+        var month = new EFacturaSearch { IssuedFrom = DateTime.Today.AddDays(-30), IssuedTo = DateTime.Today.AddDays(1) };
+
+        var drafts = await Live("SearchInvoices", client => client.SearchInvoicesAsync(EFacturaActorRole.Supplier, month));
+        var signed = await Live("SearchInvoices", client => client.SearchInvoicesAsync(
+            EFacturaActorRole.Supplier, month with { Status = EFacturaInvoiceStatus.SignedBySupplier }));
+
+        Assert.NotEmpty(drafts);
+        Assert.All(drafts, d => Assert.Equal(EFacturaInvoiceStatus.Draft, d.Status));
+        Assert.DoesNotContain(signed, d => d.Status == EFacturaInvoiceStatus.Draft);
+    }
+
+    [LivePostFact]
+    public async Task The_company_has_a_registered_bank_account()
+    {
+        var live = LiveSettings.Load()!;
+
+        var accounts = await Live("GetBankAccountInfo", client => client.GetBankAccountsAsync(live.Idno!));
+
+        Assert.NotEmpty(accounts);
+        Assert.All(accounts, a => Assert.False(string.IsNullOrWhiteSpace(a.Account)));
+        Assert.Contains(accounts, a => a.IsRegistered);
+    }
+
+    [LiveFact]
+    public async Task An_invoice_that_does_not_exist_is_answered_per_invoice()
+    {
+        // A series and number the test service handed this API user on 2026-10-08; no invoice has it.
+        EFacturaInvoiceId[] none = [new("EWWW", "000067623")];
+
+        var xml = Assert.Single(await Live("GetInvoicesBySeriaNumber", client => client.GetInvoicesAsync(none)));
+        var qr = Assert.Single(await Live("GetInvoicesQRcodes", client => client.GetQrCodesAsync(none)));
+        var pdf = await Live("GetInvoicesContentForPrint", client => client.GetPdfAsync(none, EFacturaActorRole.Supplier));
+        var cancelled = Assert.Single(await Live("PostCanceledInvoices", client => client.CancelInvoicesAsync([(none[0], "Test Konta")])));
+
+        Assert.Equal((false, "Invoice not found!"), (xml.Found, xml.Message));
+        Assert.Equal((false, "Invoice not found!"), (qr.Found, qr.Message));
+        Assert.Null(pdf);
+        Assert.False(cancelled.Done);
+        Assert.False(string.IsNullOrEmpty(cancelled.Message));
+    }
+
+    [LiveFact]
+    public async Task Logs_answer_for_a_range()
+    {
+        await Live("GetLogs", client => client.GetLogsAsync(DateTime.Today.AddDays(-7), DateTime.Today.AddDays(1)));
+    }
+
     /// <summary>One call to the test service, its exchange written to <c>fixtures/live/</c>.</summary>
     private static async Task<T> Live<T>(string operation, Func<EFacturaClient, Task<T>> call)
     {

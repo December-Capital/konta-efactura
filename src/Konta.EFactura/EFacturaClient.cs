@@ -153,6 +153,7 @@ public sealed class EFacturaClient : IAsyncDisposable
     }
 
     /// <summary>Where each of the given invoices is now (<c>CheckInvoicesStatus</c>).</summary>
+    /// <remarks>The test service answered this operation with HTTP 502 on every call on 2026-10-08.</remarks>
     /// <param name="ids">Series and numbers.</param>
     /// <param name="cancellationToken">Cancellation.</param>
     /// <returns>One entry per invoice the platform answered for.</returns>
@@ -185,7 +186,7 @@ public sealed class EFacturaClient : IAsyncDisposable
                 SupplierIDNO = search.SupplierIdno,
                 Seria = search.Seria,
                 Number = search.Number,
-                InvoiceStatus = (int?)search.Status ?? 0,
+                InvoiceStatus = (int)search.Status,
                 IssuedOn = Range(search.IssuedFrom, search.IssuedTo),
                 DeliveredOn = Range(search.DeliveredFrom, search.DeliveredTo),
                 RegisteredOn = Range(search.RegisteredFrom, search.RegisteredTo),
@@ -241,6 +242,156 @@ public sealed class EFacturaClient : IAsyncDisposable
             .ToList();
     }
 
+    /// <summary>
+    /// The company's invoices waiting for a signature, with their XML (<c>GetInvoicesForSigning</c>).
+    /// As supplier, these are the drafts it posted: the way to see them, since a draft has no series
+    /// or number yet. Each carries our <see cref="EFacturaInvoiceXml.CorrelationId"/>.
+    /// </summary>
+    /// <param name="role">Which side the company signs for.</param>
+    /// <param name="alreadySignedOnce">For the supplier: false for invoices not signed at all, true for those with a first signature.</param>
+    /// <param name="cancellationToken">Cancellation.</param>
+    /// <returns>The invoices. A posted draft appears here minutes after posting, not at once.</returns>
+    public async Task<IReadOnlyList<EFacturaInvoiceXml>> GetInvoicesForSigningAsync(
+        EFacturaActorRole role, bool alreadySignedOnce = false, CancellationToken cancellationToken = default)
+    {
+        var request = new SignRequest { RequestId = Guid.NewGuid().ToString(), ActorRole = (int)role, Order = alreadySignedOnce ? 2 : 1 };
+        var response = Checked("GetInvoicesForSigning", await _client.GetInvoicesForSigningAsync(request).WaitAsync(cancellationToken).ConfigureAwait(false), r => r.Message);
+
+        return WithXml(response.Results);
+    }
+
+    /// <summary>Invoices by series and number, with their XML (<c>GetInvoicesBySeriaNumber</c>).</summary>
+    /// <param name="ids">Series and numbers.</param>
+    /// <param name="cancellationToken">Cancellation.</param>
+    /// <returns>One entry per invoice asked for; one the company may not see is not <see cref="EFacturaInvoiceXml.Found"/>.</returns>
+    public async Task<IReadOnlyList<EFacturaInvoiceXml>> GetInvoicesAsync(IEnumerable<EFacturaInvoiceId> ids, CancellationToken cancellationToken = default)
+    {
+        var response = Checked("GetInvoicesBySeriaNumber", await _client.GetInvoicesBySeriaNumberAsync(Identified(ids)).WaitAsync(cancellationToken).ConfigureAwait(false), r => r.Message);
+
+        return WithXml(response.Results);
+    }
+
+    /// <summary>The QR codes printed on the given invoices (<c>GetInvoicesQRcodes</c>).</summary>
+    /// <param name="ids">Series and numbers.</param>
+    /// <param name="cancellationToken">Cancellation.</param>
+    /// <returns>One entry per invoice asked for.</returns>
+    public async Task<IReadOnlyList<EFacturaQrCode>> GetQrCodesAsync(IEnumerable<EFacturaInvoiceId> ids, CancellationToken cancellationToken = default)
+    {
+        var response = Checked("GetInvoicesQRcodes", await _client.GetInvoicesQRcodesAsync(Identified(ids)).WaitAsync(cancellationToken).ConfigureAwait(false));
+
+        return (response.Results ?? [])
+            .Select(q => new EFacturaQrCode(new EFacturaInvoiceId(q.Seria, q.Number), q.Status == 2, q.Message, q.QRCode, q.QRCodeText))
+            .ToList();
+    }
+
+    /// <summary>
+    /// The printable PDF of the given invoices (<c>GetInvoicesContentForPrint</c>). Not yet seen
+    /// with a signed invoice: for one it cannot find, the platform answers with no content.
+    /// </summary>
+    /// <param name="ids">Series and numbers.</param>
+    /// <param name="role">Which side the company prints for.</param>
+    /// <param name="landscape">Landscape pages rather than portrait.</param>
+    /// <param name="cancellationToken">Cancellation.</param>
+    /// <returns>The PDF, or null when the platform sent none.</returns>
+    public async Task<byte[]?> GetPdfAsync(
+        IEnumerable<EFacturaInvoiceId> ids, EFacturaActorRole role, bool landscape = false, CancellationToken cancellationToken = default)
+    {
+        var identified = Identified(ids);
+        var request = new InvoicesContentRequest
+        {
+            RequestId = identified.RequestId,
+            SeriaAndNumbers = identified.SeriaAndNumbers,
+            ActorRole = (int)role,
+            Orientation = landscape ? 2 : 1, // the guide says "Portrait" or "Landscape"; the WSDL wants a number
+        };
+        var response = Checked("GetInvoicesContentForPrint", await _client.GetInvoicesContentForPrintAsync(request).WaitAsync(cancellationToken).ConfigureAwait(false));
+
+        return response.Result?.Content is { Length: > 0 } content ? content : null;
+    }
+
+    /// <summary>
+    /// Cancels invoices the company issued (<c>PostCanceledInvoices</c>). In the semi-automated mode
+    /// the guide leaves this to a person in the web interface; the API offers it all the same.
+    /// </summary>
+    /// <param name="invoices">Series, number and why.</param>
+    /// <param name="cancellationToken">Cancellation.</param>
+    /// <returns>One result per invoice.</returns>
+    public async Task<IReadOnlyList<EFacturaInvoiceResult>> CancelInvoicesAsync(
+        IEnumerable<(EFacturaInvoiceId Id, string Reason)> invoices, CancellationToken cancellationToken = default)
+    {
+        var request = new CanceledRequest { RequestId = Guid.NewGuid().ToString(), InvoicesComments = Commented(invoices) };
+        var response = Checked("PostCanceledInvoices", await _client.PostCanceledInvoicesAsync(request).WaitAsync(cancellationToken).ConfigureAwait(false));
+
+        return Decided(response.Results);
+    }
+
+    /// <summary>Refuses invoices the company received (<c>PostRejectedInvoices</c>).</summary>
+    /// <param name="invoices">Series, number and why.</param>
+    /// <param name="cancellationToken">Cancellation.</param>
+    /// <returns>One result per invoice.</returns>
+    public async Task<IReadOnlyList<EFacturaInvoiceResult>> RejectInvoicesAsync(
+        IEnumerable<(EFacturaInvoiceId Id, string Reason)> invoices, CancellationToken cancellationToken = default)
+    {
+        var request = new RejectRequest { RequestId = Guid.NewGuid().ToString(), InvoicesComments = Commented(invoices) };
+        var response = Checked("PostRejectedInvoices", await _client.PostRejectedInvoicesAsync(request).WaitAsync(cancellationToken).ConfigureAwait(false));
+
+        return Decided(response.Results);
+    }
+
+    /// <summary>Accepts invoices the company received (<c>PostAcceptedInvoices</c>).</summary>
+    /// <param name="ids">Series and numbers.</param>
+    /// <param name="cancellationToken">Cancellation.</param>
+    /// <returns>One result per invoice.</returns>
+    public async Task<IReadOnlyList<EFacturaInvoiceResult>> AcceptInvoicesAsync(IEnumerable<EFacturaInvoiceId> ids, CancellationToken cancellationToken = default)
+    {
+        var identified = Identified(ids);
+        var request = new AcceptedRequest { RequestId = identified.RequestId, SeriaAndNumbers = identified.SeriaAndNumbers };
+        var response = Checked("PostAcceptedInvoices", await _client.PostAcceptedInvoicesAsync(request).WaitAsync(cancellationToken).ConfigureAwait(false));
+
+        return Decided(response.Results);
+    }
+
+    /// <summary>
+    /// The bank accounts the tax service has registered for an IDNO (<c>GetBankAccountInfo</c>).
+    /// Use one of these on an invoice rather than an account typed by hand.
+    /// </summary>
+    /// <param name="idno">The company.</param>
+    /// <param name="cancellationToken">Cancellation.</param>
+    /// <returns>
+    /// The accounts. The platform puts a blank entry first whatever is asked, and answers the same
+    /// whether or not the request names an account; the blank entry is left out.
+    /// </returns>
+    public async Task<IReadOnlyList<EFacturaBankAccount>> GetBankAccountsAsync(string idno, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(idno);
+
+        var request = new BankAccountRequest { RequestId = Guid.NewGuid().ToString(), IDNO = idno };
+        var response = Checked("GetBankAccountInfo", await _client.GetBankAccountInfoAsync(request).WaitAsync(cancellationToken).ConfigureAwait(false));
+
+        return (response.Results ?? [])
+            .Where(b => !string.IsNullOrWhiteSpace(b.AccountNumber))
+            .Select(b => new EFacturaBankAccount(b.AccountNumber, Blank(b.BranchCode), Blank(b.BranchTitle), b.IsRegistered))
+            .ToList();
+    }
+
+    /// <summary>
+    /// The platform's record of this API user's calls (<c>GetLogs</c>). Both ends are required: the
+    /// test service fails with an HTML error page when they are left out. It has returned nothing so far.
+    /// </summary>
+    /// <param name="from">Start.</param>
+    /// <param name="to">End.</param>
+    /// <param name="cancellationToken">Cancellation.</param>
+    /// <returns>The calls.</returns>
+    public async Task<IReadOnlyList<EFacturaLogEntry>> GetLogsAsync(DateTime from, DateTime to, CancellationToken cancellationToken = default)
+    {
+        var request = new LogsRequest { RequestId = Guid.NewGuid().ToString(), From = from, To = to };
+        var response = Checked("GetLogs", await _client.GetLogsAsync(request).WaitAsync(cancellationToken).ConfigureAwait(false));
+
+        return (response.Results ?? [])
+            .Select(l => new EFacturaLogEntry(l.Method, l.Username, l.StartDateTime, l.EndDateTime, l.Status, l.Error, l.Response))
+            .ToList();
+    }
+
     /// <summary>Status 3 is an execution error; 1 (accepted) and 2 (done) carry a usable answer.</summary>
     internal static T Checked<T>(string operation, T response, Func<T, string?>? message = null)
         where T : BaseResponse
@@ -264,6 +415,32 @@ public sealed class EFacturaClient : IAsyncDisposable
 
         return new InvoicesRequest { RequestId = Guid.NewGuid().ToString(), SeriaAndNumbers = identifiers };
     }
+
+    private static List<EFacturaInvoiceXml> WithXml(XmlInvoice[]? results) =>
+        (results ?? [])
+            .Select(i => new EFacturaInvoiceXml(new EFacturaInvoiceId(i.Seria, i.Number), i.Status == 2, (EFacturaInvoiceStatus)i.InvoiceStatus, i.Message, i.Xml))
+            .ToList();
+
+    private static List<EFacturaInvoiceResult> Decided(InvoiceResult[]? results) =>
+        (results ?? [])
+            .Select(r => new EFacturaInvoiceResult(new EFacturaInvoiceId(r.Seria, r.Number), r.Status == 2, r.Message, r.TimeStamp))
+            .ToList();
+
+    private static InvoiceComment[] Commented(IEnumerable<(EFacturaInvoiceId Id, string Reason)> invoices)
+    {
+        ArgumentNullException.ThrowIfNull(invoices);
+
+        var comments = invoices.Select(i => new InvoiceComment { Seria = i.Id.Seria, Number = i.Id.Number, Comment = i.Reason }).ToArray();
+        if (comments.Length == 0)
+        {
+            throw new ArgumentException("At least one invoice is required.", nameof(invoices));
+        }
+
+        return comments;
+    }
+
+    // The platform pads missing bank details with a space.
+    private static string? Blank(string? value) => string.IsNullOrWhiteSpace(value) ? null : value;
 
     private static List<EFacturaInvoice> Listed(Generated.Invoice[]? results) =>
         (results ?? [])

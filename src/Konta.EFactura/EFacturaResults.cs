@@ -83,8 +83,11 @@ public sealed record EFacturaSearch
     /// <summary>Buyer IDNO.</summary>
     public string? BuyerIdno { get; init; }
 
-    /// <summary>Status. The wire always carries one; left out, it sends 0, whose effect is still to confirm.</summary>
-    public EFacturaInvoiceStatus? Status { get; init; }
+    /// <summary>
+    /// Status. The wire always carries one and the platform filters by it, so a search finds
+    /// invoices of one status at a time; drafts unless set.
+    /// </summary>
+    public EFacturaInvoiceStatus Status { get; init; } = EFacturaInvoiceStatus.Draft;
 
     /// <summary>Issued on or after.</summary>
     public DateTime? IssuedFrom { get; init; }
@@ -148,6 +151,59 @@ public sealed record EFacturaPostResult(string? RequestId, int Total, int Posted
                 .Select(m => new EFacturaRefusal(int.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture), m.Groups[2].Value.Trim()))
                 .ToList();
 }
+
+/// <summary>
+/// The platform's answer for one invoice of a batch: to a cancellation, refusal or acceptance, or
+/// to a request for an invoice by series and number.
+/// </summary>
+/// <param name="Id">Series and number.</param>
+/// <param name="Done">Whether the platform did it (per-invoice <c>Status</c> 2, not 3).</param>
+/// <param name="Message">Why not, in the platform's words, for example <c>This action is not allowed for this invoice!</c>.</param>
+/// <param name="TimeStamp">When the platform answered for it, by its own clock.</param>
+public sealed record EFacturaInvoiceResult(EFacturaInvoiceId Id, bool Done, string? Message, DateTime TimeStamp);
+
+/// <summary>An invoice's XML as the platform holds it (<c>GetInvoicesForSigning</c>, <c>GetInvoicesBySeriaNumber</c>).</summary>
+/// <param name="Id">Series and number; both empty on a draft, which gets them only when signed.</param>
+/// <param name="Found">Whether the platform returned it (per-invoice <c>Status</c> 2).</param>
+/// <param name="Status">Where the invoice is.</param>
+/// <param name="Message">Why it was not returned, for example <c>Invoice not found!</c>.</param>
+/// <param name="Xml">The <c>&lt;Document&gt;</c>, when found.</param>
+public sealed record EFacturaInvoiceXml(EFacturaInvoiceId Id, bool Found, EFacturaInvoiceStatus Status, string? Message, string? Xml)
+{
+    /// <summary>
+    /// Our own id from the document's <c>AdditionalInformation/id</c>: the only handle on a draft,
+    /// which has no series or number yet.
+    /// </summary>
+    public string? CorrelationId =>
+        string.IsNullOrEmpty(Xml)
+            ? null
+            : System.Xml.Linq.XElement.Parse(Xml).Element("AdditionalInformation")?.Element("id")?.Value;
+}
+
+/// <summary>An invoice's QR code (<c>GetInvoicesQRcodes</c>).</summary>
+/// <param name="Id">Series and number.</param>
+/// <param name="Found">Whether the platform returned it.</param>
+/// <param name="Message">Why not.</param>
+/// <param name="Png">The image, as PNG.</param>
+/// <param name="Text">What the code says: series, number, parties, totals and the invoice's address on the platform.</param>
+public sealed record EFacturaQrCode(EFacturaInvoiceId Id, bool Found, string? Message, byte[]? Png, string? Text);
+
+/// <summary>A bank account as the platform knows it (<c>GetBankAccountInfo</c>).</summary>
+/// <param name="Account">The account number.</param>
+/// <param name="BranchCode">The bank branch's code.</param>
+/// <param name="BranchTitle">The bank branch's name.</param>
+/// <param name="IsRegistered">Whether the account is registered with the tax service for this IDNO.</param>
+public sealed record EFacturaBankAccount(string Account, string? BranchCode, string? BranchTitle, bool IsRegistered);
+
+/// <summary>One call recorded by the platform (<c>GetLogs</c>).</summary>
+/// <param name="Method">The operation called.</param>
+/// <param name="User">Who called it.</param>
+/// <param name="Started">When it started.</param>
+/// <param name="Ended">When it ended, if it did.</param>
+/// <param name="Status">Its status.</param>
+/// <param name="Error">Its error, if any.</param>
+/// <param name="Response">The answer, as JSON.</param>
+public sealed record EFacturaLogEntry(string? Method, string? User, DateTime Started, DateTime? Ended, int Status, string? Error, string? Response);
 
 /// <summary>
 /// The platform answered a call with an execution error (<c>Status</c> 3), such as a batch that is

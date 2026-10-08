@@ -86,16 +86,46 @@ contract and the WSDL disagree on the operations.
       the supplier's, the buyer's or both, the invoice is refused with `Object reference not set
       to an instance of an object.`, the platform's own crash. `TVA="-"` (the classifier's
       "no rate") fails the same way. `Invoice.Validate` now requires both accounts.
-- [ ] **Posted drafts are not visible through the API**, as far as seen: right after posting, and a
-      minute later, `SearchInvoices` (by `APIeInvoiceId`, supplier, issued, delivered and registered
-      dates, `InvoiceStatus` 0, 1 and 7), `GetInvoicesForSigning` (`Order` 0 and 1) and
-      `GetArchivedInvoices` all answered empty. Confirm in the test web interface that the drafts
-      are there; then sign one and see whether it appears, and with what series and number.
-- [ ] What `SearchParameters.InvoiceStatus` 0 does: the wire always carries it, and 0 is also Draft.
+- [x] **A posted draft reaches the API minutes later, not at once.** Right after posting, and a
+      minute later, every search, `GetInvoicesForSigning` and `GetArchivedInvoices` answered empty;
+      about 20 minutes later `SearchInvoices` (as supplier, by issue date, by buyer, by
+      `APIeInvoiceId`) and `GetInvoicesForSigning` (`ActorRole` 1, `Order` 1) found them, with
+      `InvoiceStatus` 0, an empty `Seria` and `Number`, and a `TimeStamp` of `0001-01-01`. So a
+      draft has no series or number to look it up by; our `AdditionalInformation/id` is the handle,
+      and `SearchParameters.APIeInvoiceId` does find it. `GetInvoicesForSigning` returns the XML we
+      sent, unchanged. Never read "not found" right after posting as "not posted".
+- [x] **Identical drafts are merged.** Three posts of the same content (same parties, date and
+      line, different `AdditionalInformation/id`) left one draft in the web interface; drafts that
+      differ in amount and line name are all kept (2026-10-08).
+- [ ] Signing a posted draft in the web interface. The test company's director, who has the right
+      to sign, gets "Nu aveți dreptul să accesați acest funcțional! Contactați directorul!" on every
+      draft: the plain ones, one with `Title`, `Address`, `TaxpayerType` and bank names for both
+      sides, so not missing fields. A draft with the bank accounts the tax service has registered
+      (from `GetBankAccountInfo`) is posted to try next. Otherwise a question for SFS.
+- [x] **`SearchParameters.InvoiceStatus` is a filter, always applied.** 0 finds drafts and only
+      drafts; 1 found none of them. A search covers one status at a time. `EFacturaSearch.Status`
+      defaults to `Draft`.
+- [x] **`CheckInvoicesStatus` answers HTTP 502** on the test service, every call, whatever the
+      invoice (2026-10-08). Search, or `GetInvoicesBySeriaNumber`, gives the status meanwhile.
+- [x] **`PostInvoicesWithAttachment` fails inside the platform** on every try, with a valid
+      one-page PDF and a valid invoice: `Status` 0, zero totals, and the server's exception and
+      stack trace in `RequestId`. No typed method until it works.
+- [x] **`GetLogs` needs both `From` and `To`.** Without them the test service answers an HTML 500
+      page. With them it answers empty, so far.
+- [x] **`GetBankAccountInfo` lists the accounts registered for an IDNO**, after one blank entry it
+      always puts first; naming an account in the request changes nothing. Our drafts used a
+      made-up account; the test company's registered one is at another bank.
+- [x] **`GetSeriaAndNumbers` reserves**: two calls handed out `EWWW 000067623`, then `000067624`.
+- [x] **Per-invoice answers, not faults**, for an invoice the user may not touch or that does not
+      exist: `Status` 2 for the call, and per invoice `Status` 3 with `Invoice not found!`,
+      `User is not authorized to access this invoice` (`GetInvoicesBySeriaNumber`) or
+      `This action is not allowed for this invoice!` (cancel, refuse, accept).
+      `GetInvoicesContentForPrint` answers a `Result` with `Status` 0 and no content.
 - [ ] Whether the session token must be presented explicitly on later calls, or whether WCF's
       per-call credentials are sufficient. The guide says a token is returned; its examples set
       `ClientCredentials` on every call and do nothing visible with the token.
-- [ ] Exact fault types. The guide names `AuthenticationFailedException`; find the rest.
+- [ ] Exact fault types. The guide names `AuthenticationFailedException`; none has been seen yet:
+      wrong passwords and server errors come as HTML pages, refusals as per-invoice statuses.
 - [ ] Throttling and batch limits for `PostInvoices`.
 - [ ] Back-dating window. A limit is reported; confirm the exact number of days.
 - [ ] Whether `GetTaxpayersInfo` is usable for general IDNO validation, or only for counterparties

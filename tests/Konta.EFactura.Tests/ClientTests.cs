@@ -114,4 +114,17 @@ public sealed class ClientTests
         Assert.False(new EFacturaPostResult("r", 2, 1, [new EFacturaRefusal(1, "x")], "x").AllPosted);
         Assert.False(new EFacturaPostResult("r", 0, 0, [], null).AllPosted);
     }
+
+    [Fact]
+    public void A_draft_is_known_by_our_id_in_its_xml()
+    {
+        // The shape GetInvoicesForSigning returned on 2026-10-08, with our id in AdditionalInformation.
+        const string xml = "<Document><SupplierInfo><DeliveryDate>2026-10-08T14:22:27.015Z</DeliveryDate></SupplierInfo>"
+            + "<AdditionalInformation><id>konta-distinct-12</id></AdditionalInformation></Document>";
+
+        var draft = new EFacturaInvoiceXml(new EFacturaInvoiceId("", ""), true, EFacturaInvoiceStatus.Draft, null, xml);
+
+        Assert.Equal("konta-distinct-12", draft.CorrelationId);
+        Assert.Null((draft with { Xml = null }).CorrelationId);
+    }
 }

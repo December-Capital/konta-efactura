@@ -10,9 +10,10 @@ accounting product. Every vendor writes it, nobody enjoys it, and when SFS chang
 find out at the same time. Better to find out together.
 
 > **Status: alpha.** The XML serialiser validates against SFS's schema, and `EFacturaClient` has
-> posted a draft invoice to SFS's test service, looked up taxpayers and searched (2026-10-08).
-> Signing, cancelling and reading a signed invoice back are not tried yet. Do not put this in
-> front of a paying customer yet.
+> called every operation of SFS's test service except signing (2026-10-08): it posts drafts and
+> finds them again, looks up taxpayers and bank accounts. Signing could not be tried, so nothing
+> has been read back, printed or cancelled on a signed invoice yet. Do not put this in front of a
+> paying customer yet.
 
 ## What the protocol actually looks like
 
@@ -131,6 +132,13 @@ Collected so you do not have to rediscover them.
 13. **A company that is not a VAT payer may use only `CreationMotiv` 1 or 2**, at a `TVA` of `0`,
     whatever the schema's note on 3 says. A VAT payer uses 4 or 5.
 14. **`GetSeriaAndNumbers` hands out a number** each time it is called. It is not a lookup.
+15. **A posted draft shows up minutes later**, with no series or number. Find it by your own
+    `AdditionalInformation/id` (`SearchInvoices` with `APIeInvoiceId`, or the XML from
+    `GetInvoicesForSigning`), and never read "not found" just after posting as "not posted".
+16. **Identical drafts are merged.** Post the same content twice and one draft remains, which
+    makes a blind retry harmless but means two genuinely identical invoices need a difference.
+17. **A search filters by one invoice status, always.** The wire carries `InvoiceStatus` even when
+    you mean "any", and 0 is Draft.
 
 ## Contributing
 
