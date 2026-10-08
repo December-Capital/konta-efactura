@@ -1,7 +1,7 @@
 # Notes on the SOAP client
 
-Working notes for whoever implements the transport. Everything here comes from the published
-integration guide, not from a live round trip — mark each item verified as you confirm it.
+Working notes for whoever implements the transport. What is ticked was seen on the test service;
+the rest comes from the published integration guide. Tick each item as you confirm it.
 
 ## Configuration
 
@@ -59,6 +59,28 @@ contract and the WSDL disagree on the operations.
 - [x] An unregistered address gets `403` before any SOAP, on the test service, portal and website
       alike. A developer elsewhere reaches them through the registered box, for example
       `ssh -N -D 127.0.0.1:1080 my-vps` and `KONTA_EFACTURA_PROXY=socks5://127.0.0.1:1080`.
+- [x] The response `Status`: 1 accepted for execution, 2 done, 3 execution error (the guide, every
+      operation). `EFacturaClient` raises 3 as `EFacturaException` and returns the rest.
+- [x] **`PostInvoices` answers 2 for a batch it read and refused.** An invoice whose supplier is not
+      the API user's company comes back with `Status` 2, `TotalInvoices` 1, `TotalInvoicesPosted` 0
+      and `ErrorMessage` `Invoice order = 0, error: Autorul facturii nu este desemnat drept
+      furnizor.` (2026-10-08). Only the two totals say whether anything went in;
+      `EFacturaPostResult.AllPosted` compares them and `Refusals` splits the message per invoice.
+- [x] A batch that is not valid against the schema is `Status` 3, with the validator's messages in
+      `ErrorMessage`, each repeated twice (`<Documents />`, 2026-10-08).
+- [x] `GetTaxpayersInfo` answers for any IDNO, not only counterparties: two companies from the
+      guide came back with name, address, VAT code and `IsEFacturaActor`. It answers `Status` 1, a
+      nil `RequestId` and a `TimeStamp` of `0001-01-01`, so do not read 1 as "not done yet" there.
+- [x] `GetAcceptedInvoices`, `GetRejectedInvoices`, `GetInvoicesForSigning`, `SearchInvoices` and
+      `GetLogs` answer 2 with empty `Results` on an account with no invoices. `GetLogs` was empty
+      for two days that included our own calls, so it may log only some methods.
+- [x] **`GetSeriaAndNumbers` hands out numbers**: with `Count` 1, `InvoiceType` 1 and an empty
+      `Seria` it answered `EWWW 000067623`. Treat it as a reservation, not a lookup, and do not call
+      it to explore.
+- [ ] The API user's company IDNO on the test service, so a valid invoice can be posted, then found
+      by `SearchInvoices` with `APIeInvoiceId` (our `AdditionalInformation/id`, to confirm) and
+      checked with `CheckInvoicesStatus`.
+- [ ] What `SearchParameters.InvoiceStatus` 0 does: the wire always carries it, and 0 is also Draft.
 - [ ] Whether the session token must be presented explicitly on later calls, or whether WCF's
       per-call credentials are sufficient. The guide says a token is returned; its examples set
       `ClientCredentials` on every call and do nothing visible with the token.
@@ -76,4 +98,4 @@ an authentication fault, and make `PostInvoices` idempotent by carrying our own 
 
 The guide warns that processing is queued and can be slow on the last day of the month, when
 everyone files at once. Assume timeouts are normal there, and never treat a timeout as a failure to
-submit — check status before resubmitting.
+submit: check status before resubmitting.

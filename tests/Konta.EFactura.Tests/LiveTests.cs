@@ -13,19 +13,68 @@ public sealed class LiveTests
     [LiveFact]
     public async Task The_test_service_answers_the_api_user()
     {
+        var answer = await Live("Test", client => client.TestAsync("Konta"));
+
+        Assert.Equal(2, answer.Status);
+    }
+
+    [LiveFact]
+    public async Task Any_idno_can_be_looked_up()
+    {
+        // Two companies from SFS's own guide.
+        var found = await Live("GetTaxpayersInfo", client => client.GetTaxpayersAsync(["1002600004030", "1002600023736"]));
+
+        Assert.Equal(["1002600004030", "1002600023736"], found.Select(t => t.FiscalCode));
+        Assert.All(found, t => Assert.True(t.InTaxRegistry));
+    }
+
+    [LiveFact]
+    public async Task An_invoice_from_another_supplier_is_refused_though_the_call_succeeds()
+    {
+        // The guide's example supplier, which is not the API user's company.
+        var invoice = new Invoice
+        {
+            SupplierIdno = "1002600001257",
+            BuyerIdno = "1002600003354",
+            DeliveryDate = DateTimeOffset.Now,
+            CreationMotive = CreationMotive.Delivery,
+            CorrelationId = "konta-live-foreign-supplier",
+            Lines = [new InvoiceLine { Code = "1", Name = "Test", UnitOfMeasure = "buc", Quantity = 1m, UnitPriceWithoutVat = 10m, VatPercent = 20m }],
+        };
+
+        var result = await Live("PostInvoices", client => client.PostInvoicesAsync([invoice]));
+
+        Assert.False(result.AllPosted);
+        Assert.Equal((1, 0), (result.Total, result.Posted));
+        Assert.Equal(0, Assert.Single(result.Refusals).Order);
+    }
+
+    [LiveFact]
+    public async Task The_lists_answer_for_the_supplier()
+    {
+        await Live("GetAcceptedInvoices", client => client.GetAcceptedInvoicesAsync(EFacturaActorRole.Supplier));
+        await Live("GetRejectedInvoices", client => client.GetRejectedInvoicesAsync(EFacturaActorRole.Supplier));
+        await Live("SearchInvoices", client => client.SearchInvoicesAsync(
+            EFacturaActorRole.Supplier, new EFacturaSearch { IssuedFrom = DateTime.Today.AddDays(-30), IssuedTo = DateTime.Today.AddDays(1) }));
+    }
+
+    /// <summary>One call to the test service, its exchange written to <c>fixtures/live/</c>.</summary>
+    private static async Task<T> Live<T>(string operation, Func<EFacturaClient, Task<T>> call)
+    {
         var live = LiveSettings.Load()!;
         var recorded = new List<(string Direction, string Message)>();
+        T answer;
 
         await using (var client = new EFacturaClient(
             EFacturaEndpoints.Test, live.User, live.Password, TimeSpan.FromMinutes(1), live.Proxy, (d, m) => recorded.Add((d, m))))
         {
-            var answer = await client.TestAsync("Konta");
-
-            Assert.NotNull(answer);
+            answer = await call(client);
         }
 
-        live.Write("Test", recorded);
+        live.Write(operation, recorded);
         Assert.Equal(["request", "response"], recorded.Select(r => r.Direction));
+
+        return answer;
     }
 }
 

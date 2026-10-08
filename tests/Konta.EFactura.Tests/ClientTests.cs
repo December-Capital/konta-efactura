@@ -58,4 +58,60 @@ public sealed class ClientTests
         Assert.Equal(19, published.Count);
         Assert.Equal(published, generated);
     }
+
+    [Fact]
+    public void An_execution_error_is_raised_with_the_platforms_message()
+    {
+        var answer = new Generated.PostInvocesResponse
+        {
+            RequestId = "r-1",
+            Status = 3,
+            ErrorMessage = "Validation failed: \tValidation error: The element 'Documents' has incomplete content.",
+        };
+
+        var error = Assert.Throws<EFacturaException>(() => EFacturaClient.Checked("PostInvoices", answer, r => r.ErrorMessage));
+
+        Assert.Equal("PostInvoices", error.Operation);
+        Assert.Equal("r-1", error.RequestId);
+        Assert.StartsWith("Validation failed", error.PlatformMessage, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(1)] // GetTaxpayersInfo answers 1 even when it found everyone
+    [InlineData(2)]
+    public void Accepted_and_done_are_answers(int status)
+    {
+        var answer = new Generated.BaseResponse { Status = status };
+
+        Assert.Same(answer, EFacturaClient.Checked("Test", answer));
+    }
+
+    [Fact]
+    public void A_refused_invoice_is_read_out_of_the_error_message()
+    {
+        // As the test service sent it on 2026-10-08, with Status 2 and TotalInvoicesPosted 0.
+        const string message = "Invoice order = 0, error: Autorul facturii nu este desemnat drept furnizor.\n\n";
+
+        var refusal = Assert.Single(EFacturaPostResult.ParseRefusals(message));
+
+        Assert.Equal(new EFacturaRefusal(0, "Autorul facturii nu este desemnat drept furnizor."), refusal);
+    }
+
+    [Fact]
+    public void Each_refused_invoice_of_a_batch_is_read_separately()
+    {
+        const string message = "Invoice order = 0, error: Primul motiv.\n\nInvoice order = 2, error: Al doilea\nmotiv.\n\n";
+
+        Assert.Equal(
+            [new EFacturaRefusal(0, "Primul motiv."), new EFacturaRefusal(2, "Al doilea\nmotiv.")],
+            EFacturaPostResult.ParseRefusals(message));
+    }
+
+    [Fact]
+    public void A_batch_is_posted_only_when_every_invoice_is()
+    {
+        Assert.True(new EFacturaPostResult("r", 2, 2, [], null).AllPosted);
+        Assert.False(new EFacturaPostResult("r", 2, 1, [new EFacturaRefusal(1, "x")], "x").AllPosted);
+        Assert.False(new EFacturaPostResult("r", 0, 0, [], null).AllPosted);
+    }
 }

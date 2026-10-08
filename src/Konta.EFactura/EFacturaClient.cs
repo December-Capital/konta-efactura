@@ -122,6 +122,159 @@ public sealed class EFacturaClient : IAsyncDisposable
     }
 
     /// <summary>
+    /// Posts invoices the company issued, unsigned, as the semi-automated guide describes: they land
+    /// as drafts, and a person signs them in the web interface. The answer carries no series or
+    /// number; find the invoices afterwards by <see cref="Invoice.CorrelationId"/>.
+    /// </summary>
+    /// <param name="invoices">One or more invoices, all with this company as supplier.</param>
+    /// <param name="requestId">Our id for the request; a new one when not given. Keep it to reconcile a timeout.</param>
+    /// <param name="cancellationToken">Cancellation. The call itself may still finish on the server: check before posting again.</param>
+    /// <returns>How many the platform read and registered, and why it refused the others.</returns>
+    /// <exception cref="EFacturaException">The batch is not valid against the platform's schema.</exception>
+    public async Task<EFacturaPostResult> PostInvoicesAsync(
+        IReadOnlyList<Invoice> invoices, string? requestId = null, CancellationToken cancellationToken = default)
+    {
+        var request = new PostInvocesRequest
+        {
+            RequestId = requestId ?? Guid.NewGuid().ToString(),
+            ActorRole = (int)EFacturaActorRole.Supplier,
+            InvoicesXml = InvoiceXml.Build(invoices),
+            InvoicesXmlStatus = 0, // unsigned
+        };
+
+        var response = Checked("PostInvoices", await _client.PostInvoicesAsync(request).WaitAsync(cancellationToken).ConfigureAwait(false), r => r.ErrorMessage);
+
+        return new EFacturaPostResult(
+            response.RequestId,
+            response.TotalInvoices,
+            response.TotalInvoicesPosted,
+            EFacturaPostResult.ParseRefusals(response.ErrorMessage),
+            response.ErrorMessage);
+    }
+
+    /// <summary>Where each of the given invoices is now (<c>CheckInvoicesStatus</c>).</summary>
+    /// <param name="ids">Series and numbers.</param>
+    /// <param name="cancellationToken">Cancellation.</param>
+    /// <returns>One entry per invoice the platform answered for.</returns>
+    public async Task<IReadOnlyList<EFacturaInvoice>> CheckInvoicesStatusAsync(
+        IEnumerable<EFacturaInvoiceId> ids, CancellationToken cancellationToken = default)
+    {
+        var response = Checked("CheckInvoicesStatus", await _client.CheckInvoicesStatusAsync(Identified(ids)).WaitAsync(cancellationToken).ConfigureAwait(false));
+
+        return Listed(response.Results);
+    }
+
+    /// <summary>Invoices matching the given criteria (<c>SearchInvoices</c>).</summary>
+    /// <param name="role">Which side of the invoices the company is on.</param>
+    /// <param name="search">The criteria; leave out what does not matter.</param>
+    /// <param name="cancellationToken">Cancellation.</param>
+    /// <returns>The invoices found.</returns>
+    public async Task<IReadOnlyList<EFacturaInvoice>> SearchInvoicesAsync(
+        EFacturaActorRole role, EFacturaSearch search, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(search);
+
+        var request = new SearchRequest
+        {
+            RequestId = Guid.NewGuid().ToString(),
+            ActorRole = (int)role,
+            Parameters = new SearchParameters
+            {
+                APIeInvoiceId = search.CorrelationId,
+                BuyerIDNO = search.BuyerIdno,
+                SupplierIDNO = search.SupplierIdno,
+                Seria = search.Seria,
+                Number = search.Number,
+                InvoiceStatus = (int?)search.Status ?? 0,
+                IssuedOn = Range(search.IssuedFrom, search.IssuedTo),
+                DeliveredOn = Range(search.DeliveredFrom, search.DeliveredTo),
+                RegisteredOn = Range(search.RegisteredFrom, search.RegisteredTo),
+            },
+        };
+
+        var response = Checked("SearchInvoices", await _client.SearchInvoicesAsync(request).WaitAsync(cancellationToken).ConfigureAwait(false));
+
+        return Listed(response.Results);
+    }
+
+    /// <summary>Invoices buyers have accepted, for the company in the given role (<c>GetAcceptedInvoices</c>).</summary>
+    /// <param name="role">Which side the company is on.</param>
+    /// <param name="cancellationToken">Cancellation.</param>
+    /// <returns>The invoices.</returns>
+    public async Task<IReadOnlyList<EFacturaInvoice>> GetAcceptedInvoicesAsync(EFacturaActorRole role, CancellationToken cancellationToken = default)
+    {
+        var request = new ActorBaseRequest { RequestId = Guid.NewGuid().ToString(), ActorRole = (int)role };
+        var response = Checked("GetAcceptedInvoices", await _client.GetAcceptedInvoicesAsync(request).WaitAsync(cancellationToken).ConfigureAwait(false));
+
+        return Listed(response.Results);
+    }
+
+    /// <summary>Invoices buyers have refused, for the company in the given role (<c>GetRejectedInvoices</c>).</summary>
+    /// <param name="role">Which side the company is on.</param>
+    /// <param name="cancellationToken">Cancellation.</param>
+    /// <returns>The invoices.</returns>
+    public async Task<IReadOnlyList<EFacturaInvoice>> GetRejectedInvoicesAsync(EFacturaActorRole role, CancellationToken cancellationToken = default)
+    {
+        var request = new ActorBaseRequest { RequestId = Guid.NewGuid().ToString(), ActorRole = (int)role };
+        var response = Checked("GetRejectedInvoices", await _client.GetRejectedInvoicesAsync(request).WaitAsync(cancellationToken).ConfigureAwait(false));
+
+        return Listed(response.Results);
+    }
+
+    /// <summary>
+    /// What the platform knows of the given IDNOs or IDNPs (<c>GetTaxpayersInfo</c>). Any code can be
+    /// asked about, not only counterparties the company already trades with.
+    /// </summary>
+    /// <param name="fiscalCodes">IDNOs or IDNPs.</param>
+    /// <param name="cancellationToken">Cancellation.</param>
+    /// <returns>One entry per code the platform found.</returns>
+    public async Task<IReadOnlyList<EFacturaTaxpayer>> GetTaxpayersAsync(IEnumerable<string> fiscalCodes, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(fiscalCodes);
+
+        // The platform answers this one with Status 1, no RequestId and a zero TimeStamp, even when it found everyone.
+        var request = new TaxpayersRequest { RequestId = Guid.NewGuid().ToString(), FiscalCodes = fiscalCodes.ToArray() };
+        var response = Checked("GetTaxpayersInfo", await _client.GetTaxpayersInfoAsync(request).WaitAsync(cancellationToken).ConfigureAwait(false));
+
+        return (response.Results ?? [])
+            .Select(t => new EFacturaTaxpayer(t.IDNO, t.Name, t.Address, t.CodTVA, t.TaxpayerType, t.ExistInTaxRegistry, t.IsEFacturaActor))
+            .ToList();
+    }
+
+    /// <summary>Status 3 is an execution error; 1 (accepted) and 2 (done) carry a usable answer.</summary>
+    internal static T Checked<T>(string operation, T response, Func<T, string?>? message = null)
+        where T : BaseResponse
+    {
+        ArgumentNullException.ThrowIfNull(response);
+
+        return response.Status == 3
+            ? throw new EFacturaException(operation, response.RequestId, message?.Invoke(response))
+            : response;
+    }
+
+    private static InvoicesRequest Identified(IEnumerable<EFacturaInvoiceId> ids)
+    {
+        ArgumentNullException.ThrowIfNull(ids);
+
+        var identifiers = ids.Select(i => new InvoiceIndentificator { Seria = i.Seria, Number = i.Number }).ToArray();
+        if (identifiers.Length == 0)
+        {
+            throw new ArgumentException("At least one invoice is required.", nameof(ids));
+        }
+
+        return new InvoicesRequest { RequestId = Guid.NewGuid().ToString(), SeriaAndNumbers = identifiers };
+    }
+
+    private static List<EFacturaInvoice> Listed(Generated.Invoice[]? results) =>
+        (results ?? [])
+            .Select(i => new EFacturaInvoice(new EFacturaInvoiceId(i.Seria, i.Number), (EFacturaInvoiceStatus)i.InvoiceStatus, i.Message, i.TimeStamp))
+            .ToList();
+
+    // The wire wants a start whenever a range is given; an end alone means nothing to it.
+    private static DateSearch? Range(DateTime? from, DateTime? to) =>
+        from is { } start ? new DateSearch { StartDate = start, EndDate = to } : null;
+
+    /// <summary>
     /// The binding SFS's guide describes: <c>basicHttpBinding</c> with
     /// <c>TransportWithMessageCredential</c>, so HTTPS carries the call and the user name and
     /// password travel in the SOAP header of every message.
