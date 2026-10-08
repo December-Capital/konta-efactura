@@ -23,6 +23,7 @@ public sealed class SchemaTests
         SupplierIdno = "1002600001257",
         BuyerIdno = "1002600003354",
         SupplierBankAccount = "22241410046",
+        BuyerBankAccount = "2224710SV12365037100",
         DeliveryDate = new DateTimeOffset(2026, 9, 30, 0, 0, 0, TimeSpan.Zero),
         CreationMotive = motive,
         CorrelationId = "konta-1",

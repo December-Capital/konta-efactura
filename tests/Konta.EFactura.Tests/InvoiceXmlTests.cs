@@ -103,6 +103,28 @@ public sealed class InvoiceXmlTests
         {
             SupplierIdno = "123",
             BuyerIdno = "1002600003354",
+            SupplierBankAccount = "22241410046",
+            BuyerBankAccount = "2224710SV12365037100",
+            DeliveryDate = DateTimeOffset.UnixEpoch,
+            CreationMotive = CreationMotive.Delivery,
+            Lines = [Line()],
+        };
+
+        Assert.Throws<InvalidOperationException>(invoice.Validate);
+    }
+
+    [Theory]
+    [InlineData("", "2224710SV12365037100")]
+    [InlineData("22241410046", " ")]
+    public void Rejects_an_invoice_without_both_bank_accounts(string supplierAccount, string buyerAccount)
+    {
+        // The test service fails on either one missing, though the schema allows it (2026-10-08).
+        var invoice = new Invoice
+        {
+            SupplierIdno = "1002600001257",
+            BuyerIdno = "1002600003354",
+            SupplierBankAccount = supplierAccount,
+            BuyerBankAccount = buyerAccount,
             DeliveryDate = DateTimeOffset.UnixEpoch,
             CreationMotive = CreationMotive.Delivery,
             Lines = [Line()],
@@ -118,6 +140,8 @@ public sealed class InvoiceXmlTests
         {
             SupplierIdno = "1002600001257",
             BuyerIdno = "1002600003354",
+            SupplierBankAccount = "22241410046",
+            BuyerBankAccount = "2224710SV12365037100",
             DeliveryDate = DateTimeOffset.UnixEpoch,
             CreationMotive = CreationMotive.Delivery,
             Lines = [],

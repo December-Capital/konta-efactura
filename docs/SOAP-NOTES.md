@@ -77,9 +77,20 @@ contract and the WSDL disagree on the operations.
 - [x] **`GetSeriaAndNumbers` hands out numbers**: with `Count` 1, `InvoiceType` 1 and an empty
       `Seria` it answered `EWWW 000067623`. Treat it as a reservation, not a lookup, and do not call
       it to explore.
-- [ ] The API user's company IDNO on the test service, so a valid invoice can be posted, then found
-      by `SearchInvoices` with `APIeInvoiceId` (our `AdditionalInformation/id`, to confirm) and
-      checked with `CheckInvoicesStatus`.
+- [x] A valid invoice posts (2026-10-08, as the test company, `LiveTests`): `TotalInvoicesPosted`
+      1 and an empty `ErrorMessage`. The test company is not a VAT payer (no `CodTVA` in
+      `GetTaxpayersInfo`); from it the platform takes only `CreationMotiv` 1 or 2 ("Motivul
+      Crearii este indicat incorect trebue sa fie 1 sau 2"), though the schema also lists 3, and a
+      line `TVA` of `0`.
+- [x] **Both bank accounts are required**, though the schema makes `BankAccount` optional. Without
+      the supplier's, the buyer's or both, the invoice is refused with `Object reference not set
+      to an instance of an object.`, the platform's own crash. `TVA="-"` (the classifier's
+      "no rate") fails the same way. `Invoice.Validate` now requires both accounts.
+- [ ] **Posted drafts are not visible through the API**, as far as seen: right after posting, and a
+      minute later, `SearchInvoices` (by `APIeInvoiceId`, supplier, issued, delivered and registered
+      dates, `InvoiceStatus` 0, 1 and 7), `GetInvoicesForSigning` (`Order` 0 and 1) and
+      `GetArchivedInvoices` all answered empty. Confirm in the test web interface that the drafts
+      are there; then sign one and see whether it appears, and with what series and number.
 - [ ] What `SearchParameters.InvoiceStatus` 0 does: the wire always carries it, and 0 is also Draft.
 - [ ] Whether the session token must be presented explicitly on later calls, or whether WCF's
       per-call credentials are sufficient. The guide says a token is returned; its examples set

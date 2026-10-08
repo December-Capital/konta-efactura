@@ -36,6 +36,8 @@ public sealed class LiveTests
         {
             SupplierIdno = "1002600001257",
             BuyerIdno = "1002600003354",
+            SupplierBankAccount = "22241410046",
+            BuyerBankAccount = "2224710SV12365037100",
             DeliveryDate = DateTimeOffset.Now,
             CreationMotive = CreationMotive.Delivery,
             CorrelationId = "konta-live-foreign-supplier",
@@ -47,6 +49,34 @@ public sealed class LiveTests
         Assert.False(result.AllPosted);
         Assert.Equal((1, 0), (result.Total, result.Posted));
         Assert.Equal(0, Assert.Single(result.Refusals).Order);
+    }
+
+    /// <summary>
+    /// Leaves a draft on the test account at every run, which only the web interface can delete; so
+    /// it runs only when <c>KONTA_EFACTURA_IDNO</c> names the API user's company.
+    /// </summary>
+    [LivePostFact]
+    public async Task A_valid_invoice_is_posted_as_a_draft()
+    {
+        var live = LiveSettings.Load()!;
+        var invoice = new Invoice
+        {
+            SupplierIdno = live.Idno!,
+            BuyerIdno = "1002600004030", // a company from SFS's guide, an e-Factura actor on the test service
+            SupplierBankAccount = "MD24AG000225100013104168",
+            BuyerBankAccount = "MD21EX000000022241410046",
+            DeliveryDate = DateTimeOffset.Now,
+
+            // The test company is not a VAT payer: the platform takes only motive 1 or 2 from it, at a 0 rate.
+            CreationMotive = CreationMotive.SupplyDocumentation,
+            CorrelationId = "konta-live-" + DateTime.UtcNow.ToString("yyyyMMddHHmmss", System.Globalization.CultureInfo.InvariantCulture),
+            Lines = [new InvoiceLine { Code = "1", Name = "Servicii de testare", UnitOfMeasure = "buc", Quantity = 1m, UnitPriceWithoutVat = 10m, VatPercent = 0m }],
+        };
+
+        var result = await Live("PostInvoices", client => client.PostInvoicesAsync([invoice]));
+
+        Assert.True(result.AllPosted, result.ErrorMessage);
+        Assert.Empty(result.Refusals);
     }
 
     [LiveFact]
@@ -90,7 +120,19 @@ public sealed class LiveFactAttribute : FactAttribute
     }
 }
 
-internal sealed record LiveSettings(string User, string Password, Uri? Proxy, string Root)
+/// <summary>A live fact that also needs the API user's company IDNO, because it posts as that company.</summary>
+public sealed class LivePostFactAttribute : FactAttribute
+{
+    public LivePostFactAttribute()
+    {
+        if (LiveSettings.Load() is not { Idno: not null })
+        {
+            Skip = "Posts a draft as the API user's company: set KONTA_EFACTURA_IDNO as well, or put it in .env.";
+        }
+    }
+}
+
+internal sealed record LiveSettings(string User, string Password, string? Idno, Uri? Proxy, string Root)
 {
     public static LiveSettings? Load()
     {
@@ -104,11 +146,12 @@ internal sealed record LiveSettings(string User, string Password, Uri? Proxy, st
 
         var user = Value("KONTA_EFACTURA_USER");
         var password = Value("KONTA_EFACTURA_PASSWORD");
+        var idno = Value("KONTA_EFACTURA_IDNO");
         var proxy = Value("KONTA_EFACTURA_PROXY");
 
         return string.IsNullOrWhiteSpace(user) || string.IsNullOrEmpty(password) || root is null
             ? null
-            : new LiveSettings(user, password, string.IsNullOrWhiteSpace(proxy) ? null : new Uri(proxy), root);
+            : new LiveSettings(user, password, string.IsNullOrWhiteSpace(idno) ? null : idno, string.IsNullOrWhiteSpace(proxy) ? null : new Uri(proxy), root);
     }
 
     /// <summary>Writes one exchange under <c>fixtures/live/</c>, refusing to keep the password.</summary>

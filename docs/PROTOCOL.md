@@ -9,10 +9,10 @@ Open source because this is the least differentiating and most breakable part of
 accounting product. Every vendor writes it, nobody enjoys it, and when SFS changes something we all
 find out at the same time. Better to find out together.
 
-> **Status: alpha, and not yet verified against the live service.** The XML serialiser validates
-> against SFS's schema. The SOAP contract is generated from SFS's WSDL and `EFacturaClient` is
-> configured as the guide describes, but no call has reached SFS yet: test access is being set
-> up. Do not put this in front of a paying customer yet.
+> **Status: alpha.** The XML serialiser validates against SFS's schema, and `EFacturaClient` has
+> posted a draft invoice to SFS's test service, looked up taxpayers and searched (2026-10-08).
+> Signing, cancelling and reading a signed invoice back are not tried yet. Do not put this in
+> front of a paying customer yet.
 
 ## What the protocol actually looks like
 
@@ -68,6 +68,8 @@ var invoice = new Invoice
 {
     SupplierIdno = "1002600001257",
     BuyerIdno    = "1002600003354",
+    SupplierBankAccount = "22241410046",          // required by the platform, see trap 11
+    BuyerBankAccount    = "2224710SV12365037100",
     DeliveryDate = DateTimeOffset.UtcNow,
     CreationMotive = CreationMotive.Delivery,   // CreationMotiv, required by the schema
     CorrelationId = "our-id-42",
@@ -86,6 +88,14 @@ var invoice = new Invoice
 };
 
 string xml = InvoiceXml.Build([invoice]);
+
+await using var client = new EFacturaClient(EFacturaEnvironment.Test, apiUser, apiPassword);
+var posted = await client.PostInvoicesAsync([invoice]);
+if (!posted.AllPosted)
+{
+    foreach (var refusal in posted.Refusals)
+        Console.WriteLine($"Invoice {refusal.Order}: {refusal.Message}");
+}
 ```
 
 ## Traps we have already hit
@@ -112,6 +122,15 @@ Collected so you do not have to rediscover them.
 9. **SFS's own example XML files are not valid against SFS's own schema.** See `spec/sfs/README.md`.
 10. **The test environment answers `403` to any address SFS has not registered**, the API and the
     web interface alike. Production serves its WSDL to anyone.
+11. **Both bank accounts are required in practice**, though the schema makes them optional. Leave
+    out either and the platform refuses the invoice with its own `NullReferenceException` text,
+    `Object reference not set to an instance of an object.` `TVA="-"` does the same.
+12. **`PostInvoices` reports a refused invoice as success.** `Status` 2 means the batch was read,
+    not posted; compare `TotalInvoicesPosted` with `TotalInvoices` (`EFacturaPostResult.AllPosted`)
+    and read the reasons out of `ErrorMessage` (`Refusals`).
+13. **A company that is not a VAT payer may use only `CreationMotiv` 1 or 2**, at a `TVA` of `0`,
+    whatever the schema's note on 3 says. A VAT payer uses 4 or 5.
+14. **`GetSeriaAndNumbers` hands out a number** each time it is called. It is not a lookup.
 
 ## Contributing
 

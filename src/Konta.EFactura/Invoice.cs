@@ -14,11 +14,14 @@ public sealed class Invoice
     /// <summary>Delivery date and time.</summary>
     public required DateTimeOffset DeliveryDate { get; init; }
 
-    /// <summary>Supplier bank account, when the document carries one.</summary>
-    public string? SupplierBankAccount { get; init; }
+    /// <summary>
+    /// Supplier bank account. The schema makes it optional, but the platform fails on an invoice
+    /// without it ("Object reference not set to an instance of an object").
+    /// </summary>
+    public required string SupplierBankAccount { get; init; }
 
-    /// <summary>Buyer bank account, when the document carries one.</summary>
-    public string? BuyerBankAccount { get; init; }
+    /// <summary>Buyer bank account. Required by the platform, as <see cref="SupplierBankAccount"/> is.</summary>
+    public required string BuyerBankAccount { get; init; }
 
     /// <summary>
     /// Why the invoice is issued (<c>CreationMotiv</c>), which the schema requires on every
@@ -43,6 +46,8 @@ public sealed class Invoice
     {
         AssertIdno(SupplierIdno, nameof(SupplierIdno));
         AssertIdno(BuyerIdno, nameof(BuyerIdno));
+        AssertPresent(SupplierBankAccount, nameof(SupplierBankAccount));
+        AssertPresent(BuyerBankAccount, nameof(BuyerBankAccount));
 
         if (!Enum.IsDefined(CreationMotive))
         {
@@ -69,6 +74,14 @@ public sealed class Invoice
 
     /// <summary>Total including VAT.</summary>
     public decimal TotalWithVat => Lines.Sum(l => l.TotalWithVat);
+
+    private static void AssertPresent(string value, string field)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            throw new InvalidOperationException($"{field} is required: the platform cannot process an invoice without it.");
+        }
+    }
 
     private static void AssertIdno(string idno, string field)
     {

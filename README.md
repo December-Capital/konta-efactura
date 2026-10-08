@@ -6,9 +6,9 @@ să-i trimită facturi și să afle ce s-a întâmplat cu ele. Aici este partea 
 face asta. Este gratuită și oricine o poate folosi sau îmbunătăți.
 
 > **Stadiu: versiune timpurie.** Programul pregătește corect factura în forma cerută de SFS, iar
-> testele o verifică după schema oficială a SFS. Nu a trimis încă nicio factură, pentru că
-> accesul nostru la mediul de test al SFS este în curs de pregătire. Nu o folosiți încă pentru
-> clienți.
+> testele o verifică după schema oficială a SFS. A trimis primele facturi ca ciorne în mediul de
+> test al SFS. Semnarea, anularea și citirea facturilor semnate nu sunt încă încercate. Nu o
+> folosiți încă pentru clienți.
 
 ## De ce este deschisă
 
@@ -21,7 +21,8 @@ Transformă o factură în fișierul pe care îl cere e-Factura și oprește gre
 TVA-ul scris ca 0,20 în loc de 20, totaluri care nu dau cât suma rândurilor, câmpuri obligatorii
 lipsă.
 
-Urmează trimiterea facturilor, aflarea stării lor, acceptarea și respingerea.
+Trimite facturile ca ciorne, caută facturi și verifică datele unei firme după IDNO. Urmează
+aflarea stării facturilor semnate, acceptarea și respingerea.
 
 Documentele primite de la SFS, cu adresele de test și de producție, sunt în
 [spec/sfs](spec/sfs/README.md).
