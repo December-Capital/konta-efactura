@@ -49,8 +49,16 @@ contract and the WSDL disagree on the operations.
 - [x] The endpoint URL for test, and whether production differs by host or by path only. By host:
       `apiefactura-pre.sfs.md` and `efactura-api.sfs.md`, both at `/Service.svc` (SFS's package,
       2026-10-06). The test host answers 403 until SFS registers the caller's address.
-- [ ] The first `Test` call from a registered address with real test credentials, and what its
-      `Status` values mean.
+- [x] The first `Test` call from a registered address with real test credentials (2026-10-08,
+      through an SSH tunnel to 91.108.122.125, `LiveTests`). It answers `Status` 2 and puts
+      `User name: <api user> from v2` in `RequestId`, so it does authenticate. What the other
+      `Status` values mean is still to read. The service's clock is local time (+03:00).
+- [x] A wrong password is not a SOAP fault: the service answers an HTML error page with HTTP 500,
+      which WCF raises as a `ProtocolException` about content type `text/html`. Treat that as
+      "authentication refused or server error", never retry it blindly.
+- [x] An unregistered address gets `403` before any SOAP, on the test service, portal and website
+      alike. A developer elsewhere reaches them through the registered box, for example
+      `ssh -N -D 127.0.0.1:1080 my-vps` and `KONTA_EFACTURA_PROXY=socks5://127.0.0.1:1080`.
 - [ ] Whether the session token must be presented explicitly on later calls, or whether WCF's
       per-call credentials are sufficient. The guide says a token is returned; its examples set
       `ClientCredentials` on every call and do nothing visible with the token.

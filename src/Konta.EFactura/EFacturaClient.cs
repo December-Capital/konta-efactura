@@ -73,14 +73,35 @@ public sealed class EFacturaClient : IAsyncDisposable
     /// <param name="password">Its password.</param>
     /// <param name="timeout">How long one call may take; two minutes when not given.</param>
     public EFacturaClient(Uri address, string userName, string password, TimeSpan? timeout = null)
+        : this(address, userName, password, timeout, proxy: null, recorder: null)
+    {
+    }
+
+    /// <summary>
+    /// For the live tests: a proxy to reach the test service from an address SFS has not
+    /// registered, and a recorder that is handed each SOAP message as it is sent and received.
+    /// </summary>
+    internal EFacturaClient(Uri address, string userName, string password, TimeSpan? timeout, Uri? proxy, Action<string, string>? recorder)
     {
         ArgumentNullException.ThrowIfNull(address);
         ArgumentException.ThrowIfNullOrWhiteSpace(userName);
         ArgumentException.ThrowIfNullOrEmpty(password);
 
-        _client = new ServiceClient(Binding(timeout ?? TimeSpan.FromMinutes(2)), new EndpointAddress(address));
+        var binding = Binding(timeout ?? TimeSpan.FromMinutes(2));
+        if (proxy is not null)
+        {
+            binding.UseDefaultWebProxy = false;
+            binding.ProxyAddress = proxy;
+        }
+
+        _client = new ServiceClient(binding, new EndpointAddress(address));
         _client.ClientCredentials.UserName.UserName = userName;
         _client.ClientCredentials.UserName.Password = password;
+
+        if (recorder is not null)
+        {
+            _client.Endpoint.EndpointBehaviors.Add(new MessageRecorder(recorder));
+        }
     }
 
     /// <summary>The address this client calls.</summary>
