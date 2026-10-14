@@ -1,0 +1,13 @@
+# Dependency updates as pull requests, weekly, so a vulnerable package is a PR to review rather
+# than something found by accident. Security updates also need "Dependabot security updates"
+# switched on in the repository settings (Settings, Code security).
+version: 2
+updates:
+  - package-ecosystem: nuget
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

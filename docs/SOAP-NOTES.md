@@ -50,15 +50,15 @@ contract and the WSDL disagree on the operations.
       `apiefactura-pre.sfs.md` and `efactura-api.sfs.md`, both at `/Service.svc` (SFS's package,
       2026-10-06). The test host answers 403 until SFS registers the caller's address.
 - [x] The first `Test` call from a registered address with real test credentials (2026-10-08,
-      through an SSH tunnel to 91.108.122.125, `LiveTests`). It answers `Status` 2 and puts
+      from the registered address, `LiveTests`). It answers `Status` 2 and puts
       `User name: <api user> from v2` in `RequestId`, so it does authenticate. What the other
       `Status` values mean is still to read. The service's clock is local time (+03:00).
 - [x] A wrong password is not a SOAP fault: the service answers an HTML error page with HTTP 500,
       which WCF raises as a `ProtocolException` about content type `text/html`. Treat that as
       "authentication refused or server error", never retry it blindly.
 - [x] An unregistered address gets `403` before any SOAP, on the test service, portal and website
-      alike. A developer elsewhere reaches them through the registered box, for example
-      `ssh -N -D 127.0.0.1:1080 my-vps` and `KONTA_EFACTURA_PROXY=socks5://127.0.0.1:1080`.
+      alike. A developer elsewhere has to go out through the registered address;
+      `KONTA_EFACTURA_PROXY` takes a proxy URL for that.
 - [x] The response `Status`: 1 accepted for execution, 2 done, 3 execution error (the guide, every
       operation). `EFacturaClient` raises 3 as `EFacturaException` and returns the rest.
 - [x] **`PostInvoices` answers 2 for a batch it read and refused.** An invoice whose supplier is not
