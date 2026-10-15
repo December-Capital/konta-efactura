@@ -7,6 +7,15 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # The library targets .NET 9, as the product does. The WCF client packages and the XML
+    # signing package follow the framework's major version (10.x is the .NET 10 line, and the
+    # 10.x WCF packages do not build here), so a new major is a decision, not a PR to merge.
+    # Test tooling (Microsoft.NET.Test.Sdk, xunit) is not tied to it and stays open.
+    ignore:
+      - dependency-name: "System.ServiceModel.*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "System.Security.Cryptography.Xml"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions
     directory: /
     schedule:
