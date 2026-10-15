@@ -131,6 +131,21 @@ public sealed class LiveTests
     }
 
     [LiveFact]
+    public async Task An_idno_nobody_holds_is_answered_with_nobody()
+    {
+        // A valid check digit does not make a number free: one picked that way was a real company's.
+        // The 1099900000xxx numbers were unassigned on the test service on 2026-10-15.
+        const string nobody = "1099900000039";
+
+        var taxpayers = await Live("GetTaxpayersInfo-unknown", client => client.GetTaxpayersAsync([nobody]));
+        var accounts = await Live("GetBankAccountInfo-unknown", client => client.GetBankAccountsAsync(nobody));
+
+        // Left out of the answer rather than answered as unknown.
+        Assert.Empty(taxpayers);
+        Assert.Empty(accounts);
+    }
+
+    [LiveFact]
     public async Task An_invoice_that_does_not_exist_is_answered_per_invoice()
     {
         // A series and number the test service handed this API user on 2026-10-08; no invoice has it.
@@ -162,7 +177,10 @@ public sealed class LiveTests
         T answer;
 
         await using (var client = new EFacturaClient(
-            EFacturaEndpoints.Test, live.User, live.Password, TimeSpan.FromMinutes(1), live.Proxy, (d, m) => recorded.Add((d, m))))
+            EFacturaEndpoints.Test,
+            live.User,
+            live.Password,
+            new EFacturaClientOptions { Timeout = TimeSpan.FromMinutes(1), Proxy = live.Proxy, Recorder = (d, m) => recorded.Add((d, m)) }))
         {
             answer = await call(client);
         }

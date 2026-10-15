@@ -112,9 +112,15 @@ contract and the WSDL disagree on the operations.
       stack trace in `RequestId`. No typed method until it works.
 - [x] **`GetLogs` needs both `From` and `To`.** Without them the test service answers an HTML 500
       page. With them it answers empty, so far.
-- [x] **`GetBankAccountInfo` lists the accounts registered for an IDNO**, after one blank entry it
-      always puts first; naming an account in the request changes nothing. Our drafts used a
-      made-up account; the test company's registered one is at another bank.
+- [x] **`GetBankAccountInfo` lists the accounts registered for an IDNO**; naming an account in the
+      request changes nothing. Our drafts used a made-up account; the test company's registered
+      one is at another bank. The test company's answer always starts with a blank entry; another
+      company's (2026-10-15) had none, so the blank belongs to that company's record, not to the
+      operation. `GetBankAccountsAsync` leaves blanks out either way.
+- [x] **An IDNO nobody holds is left out, not reported** (2026-10-15): `GetTaxpayersInfo` answers
+      `Status` 1 with empty `Results`, `GetBankAccountInfo` `Status` 2 with empty `Results`. A valid
+      check digit does not make a number free: one picked that way was a real company's. The
+      `1099900000xxx` numbers were unassigned then, and the tests use them.
 - [x] **`GetSeriaAndNumbers` reserves**: two calls handed out `EWWW 000067623`, then `000067624`.
 - [x] **Per-invoice answers, not faults**, for an invoice the user may not touch or that does not
       exist: `Status` 2 for the call, and per invoice `Status` 3 with `Invoice not found!`,
@@ -128,8 +134,10 @@ contract and the WSDL disagree on the operations.
       wrong passwords and server errors come as HTML pages, refusals as per-invoice statuses.
 - [ ] Throttling and batch limits for `PostInvoices`.
 - [ ] Back-dating window. A limit is reported; confirm the exact number of days.
-- [ ] Whether `GetTaxpayersInfo` is usable for general IDNO validation, or only for counterparties
-      you already trade with. If the former, it may reduce our dependence on MConnect.
+- [x] Whether `GetTaxpayersInfo` is usable for general IDNO validation, or only for counterparties
+      you already trade with: any IDNO, including companies the API user's company never traded
+      with (2026-10-08 and 2026-10-15). Konta fills a partner's official name, address, VAT code
+      and registered bank accounts from it and `GetBankAccountInfo`.
 
 ## Resilience
 

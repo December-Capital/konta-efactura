@@ -73,34 +73,44 @@ public sealed class EFacturaClient : IAsyncDisposable
     /// <param name="password">Its password.</param>
     /// <param name="timeout">How long one call may take; two minutes when not given.</param>
     public EFacturaClient(Uri address, string userName, string password, TimeSpan? timeout = null)
-        : this(address, userName, password, timeout, proxy: null, recorder: null)
+        : this(address, userName, password, new EFacturaClientOptions { Timeout = timeout })
     {
     }
 
     /// <summary>
-    /// For the live tests: a proxy to reach the test service from an address SFS has not
-    /// registered, and a recorder that is handed each SOAP message as it is sent and received.
+    /// With everything a caller may change about how the client reaches the service: a timeout, a
+    /// proxy, a recorder of each exchange, and the HTTP transport itself.
     /// </summary>
-    internal EFacturaClient(Uri address, string userName, string password, TimeSpan? timeout, Uri? proxy, Action<string, string>? recorder)
+    /// <param name="address">The service address, usually <see cref="EFacturaEndpoints.For"/>.</param>
+    /// <param name="userName">The company's API user.</param>
+    /// <param name="password">Its password.</param>
+    /// <param name="options">What to change; the defaults otherwise.</param>
+    public EFacturaClient(Uri address, string userName, string password, EFacturaClientOptions options)
     {
         ArgumentNullException.ThrowIfNull(address);
         ArgumentException.ThrowIfNullOrWhiteSpace(userName);
         ArgumentException.ThrowIfNullOrEmpty(password);
+        ArgumentNullException.ThrowIfNull(options);
 
-        var binding = Binding(timeout ?? TimeSpan.FromMinutes(2));
-        if (proxy is not null)
+        var binding = Binding(options.Timeout ?? TimeSpan.FromMinutes(2));
+        if (options.Proxy is not null)
         {
             binding.UseDefaultWebProxy = false;
-            binding.ProxyAddress = proxy;
+            binding.ProxyAddress = options.Proxy;
         }
 
         _client = new ServiceClient(binding, new EndpointAddress(address));
         _client.ClientCredentials.UserName.UserName = userName;
         _client.ClientCredentials.UserName.Password = password;
 
-        if (recorder is not null)
+        if (options.Recorder is not null)
         {
-            _client.Endpoint.EndpointBehaviors.Add(new MessageRecorder(recorder));
+            _client.Endpoint.EndpointBehaviors.Add(new MessageRecorder(options.Recorder));
+        }
+
+        if (options.Transport is not null)
+        {
+            _client.Endpoint.EndpointBehaviors.Add(new TransportBehavior(options.Transport));
         }
     }
 
@@ -358,8 +368,9 @@ public sealed class EFacturaClient : IAsyncDisposable
     /// <param name="idno">The company.</param>
     /// <param name="cancellationToken">Cancellation.</param>
     /// <returns>
-    /// The accounts. The platform puts a blank entry first whatever is asked, and answers the same
-    /// whether or not the request names an account; the blank entry is left out.
+    /// The accounts, none for an IDNO nobody holds. For some companies the platform puts a blank
+    /// entry first (the test company's answer always has one, another company's had none); blank
+    /// entries are left out.
     /// </returns>
     public async Task<IReadOnlyList<EFacturaBankAccount>> GetBankAccountsAsync(string idno, CancellationToken cancellationToken = default)
     {
