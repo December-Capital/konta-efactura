@@ -64,8 +64,34 @@ public sealed class ReplayTests
         await Assert.ThrowsAsync<System.ServiceModel.ProtocolException>(() => client.GetTaxpayersAsync(["1099900000017"]));
     }
 
+    [Fact]
+    public async Task A_call_given_up_on_does_not_hold_the_client_open()
+    {
+        var started = TimeProvider.System.GetTimestamp();
+        using var leaving = new CancellationTokenSource(TimeSpan.FromMilliseconds(200));
+
+        await using (var client = new EFacturaClient(
+            EFacturaEndpoints.Test, "api-user", "not-a-real-password", new EFacturaClientOptions { Transport = _ => new Stalled(), Timeout = TimeSpan.FromSeconds(20) }))
+        {
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => client.GetTaxpayersAsync(["1099900000017"], leaving.Token));
+        }
+
+        // Closing would wait for the stalled call until the binding's 20 seconds.
+        Assert.True(TimeProvider.System.GetElapsedTime(started) < TimeSpan.FromSeconds(5));
+    }
+
     private static EFacturaClient Client(Replay replay) =>
         new(EFacturaEndpoints.Test, "api-user", "not-a-real-password", new EFacturaClientOptions { Transport = _ => replay, Timeout = TimeSpan.FromSeconds(10) });
+
+    /// <summary>A service that never answers within the test.</summary>
+    private sealed class Stalled : HttpMessageHandler
+    {
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            await Task.Delay(TimeSpan.FromSeconds(30), cancellationToken);
+            return new HttpResponseMessage(HttpStatusCode.ServiceUnavailable);
+        }
+    }
 
     /// <summary>
     /// Answers each call with <c>fixtures/replay/{operation}-response.xml</c>, its security timestamp

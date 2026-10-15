@@ -57,6 +57,9 @@ public sealed class EFacturaClient : IAsyncDisposable
 
     private readonly ServiceClient _client;
 
+    // Set when a caller gave up waiting on a call: closing would wait for it, so dispose aborts.
+    private volatile bool _abandoned;
+
     /// <summary>Opens nothing yet: the first call connects.</summary>
     /// <param name="environment">Test or production.</param>
     /// <param name="userName">The company's API user.</param>
@@ -126,7 +129,7 @@ public sealed class EFacturaClient : IAsyncDisposable
     /// <returns>The service's answer.</returns>
     public async Task<EFacturaTestResult> TestAsync(string message, CancellationToken cancellationToken = default)
     {
-        var response = await _client.TestAsync(message).WaitAsync(cancellationToken).ConfigureAwait(false);
+        var response = await Call(_client.TestAsync(message), cancellationToken);
 
         return new EFacturaTestResult(response.RequestId, response.Status, response.TimeStamp);
     }
@@ -152,7 +155,7 @@ public sealed class EFacturaClient : IAsyncDisposable
             InvoicesXmlStatus = 0, // unsigned
         };
 
-        var response = Checked("PostInvoices", await _client.PostInvoicesAsync(request).WaitAsync(cancellationToken).ConfigureAwait(false), r => r.ErrorMessage);
+        var response = Checked("PostInvoices", await Call(_client.PostInvoicesAsync(request), cancellationToken), r => r.ErrorMessage);
 
         return new EFacturaPostResult(
             response.RequestId,
@@ -170,7 +173,7 @@ public sealed class EFacturaClient : IAsyncDisposable
     public async Task<IReadOnlyList<EFacturaInvoice>> CheckInvoicesStatusAsync(
         IEnumerable<EFacturaInvoiceId> ids, CancellationToken cancellationToken = default)
     {
-        var response = Checked("CheckInvoicesStatus", await _client.CheckInvoicesStatusAsync(Identified(ids)).WaitAsync(cancellationToken).ConfigureAwait(false));
+        var response = Checked("CheckInvoicesStatus", await Call(_client.CheckInvoicesStatusAsync(Identified(ids)), cancellationToken));
 
         return Listed(response.Results);
     }
@@ -203,7 +206,7 @@ public sealed class EFacturaClient : IAsyncDisposable
             },
         };
 
-        var response = Checked("SearchInvoices", await _client.SearchInvoicesAsync(request).WaitAsync(cancellationToken).ConfigureAwait(false));
+        var response = Checked("SearchInvoices", await Call(_client.SearchInvoicesAsync(request), cancellationToken));
 
         return Listed(response.Results);
     }
@@ -215,7 +218,7 @@ public sealed class EFacturaClient : IAsyncDisposable
     public async Task<IReadOnlyList<EFacturaInvoice>> GetAcceptedInvoicesAsync(EFacturaActorRole role, CancellationToken cancellationToken = default)
     {
         var request = new ActorBaseRequest { RequestId = Guid.NewGuid().ToString(), ActorRole = (int)role };
-        var response = Checked("GetAcceptedInvoices", await _client.GetAcceptedInvoicesAsync(request).WaitAsync(cancellationToken).ConfigureAwait(false));
+        var response = Checked("GetAcceptedInvoices", await Call(_client.GetAcceptedInvoicesAsync(request), cancellationToken));
 
         return Listed(response.Results);
     }
@@ -227,7 +230,7 @@ public sealed class EFacturaClient : IAsyncDisposable
     public async Task<IReadOnlyList<EFacturaInvoice>> GetRejectedInvoicesAsync(EFacturaActorRole role, CancellationToken cancellationToken = default)
     {
         var request = new ActorBaseRequest { RequestId = Guid.NewGuid().ToString(), ActorRole = (int)role };
-        var response = Checked("GetRejectedInvoices", await _client.GetRejectedInvoicesAsync(request).WaitAsync(cancellationToken).ConfigureAwait(false));
+        var response = Checked("GetRejectedInvoices", await Call(_client.GetRejectedInvoicesAsync(request), cancellationToken));
 
         return Listed(response.Results);
     }
@@ -245,7 +248,7 @@ public sealed class EFacturaClient : IAsyncDisposable
 
         // The platform answers this one with Status 1, no RequestId and a zero TimeStamp, even when it found everyone.
         var request = new TaxpayersRequest { RequestId = Guid.NewGuid().ToString(), FiscalCodes = fiscalCodes.ToArray() };
-        var response = Checked("GetTaxpayersInfo", await _client.GetTaxpayersInfoAsync(request).WaitAsync(cancellationToken).ConfigureAwait(false));
+        var response = Checked("GetTaxpayersInfo", await Call(_client.GetTaxpayersInfoAsync(request), cancellationToken));
 
         return (response.Results ?? [])
             .Select(t => new EFacturaTaxpayer(t.IDNO, t.Name, t.Address, t.CodTVA, t.TaxpayerType, t.ExistInTaxRegistry, t.IsEFacturaActor))
@@ -265,7 +268,7 @@ public sealed class EFacturaClient : IAsyncDisposable
         EFacturaActorRole role, bool alreadySignedOnce = false, CancellationToken cancellationToken = default)
     {
         var request = new SignRequest { RequestId = Guid.NewGuid().ToString(), ActorRole = (int)role, Order = alreadySignedOnce ? 2 : 1 };
-        var response = Checked("GetInvoicesForSigning", await _client.GetInvoicesForSigningAsync(request).WaitAsync(cancellationToken).ConfigureAwait(false), r => r.Message);
+        var response = Checked("GetInvoicesForSigning", await Call(_client.GetInvoicesForSigningAsync(request), cancellationToken), r => r.Message);
 
         return WithXml(response.Results);
     }
@@ -276,7 +279,7 @@ public sealed class EFacturaClient : IAsyncDisposable
     /// <returns>One entry per invoice asked for; one the company may not see is not <see cref="EFacturaInvoiceXml.Found"/>.</returns>
     public async Task<IReadOnlyList<EFacturaInvoiceXml>> GetInvoicesAsync(IEnumerable<EFacturaInvoiceId> ids, CancellationToken cancellationToken = default)
     {
-        var response = Checked("GetInvoicesBySeriaNumber", await _client.GetInvoicesBySeriaNumberAsync(Identified(ids)).WaitAsync(cancellationToken).ConfigureAwait(false), r => r.Message);
+        var response = Checked("GetInvoicesBySeriaNumber", await Call(_client.GetInvoicesBySeriaNumberAsync(Identified(ids)), cancellationToken), r => r.Message);
 
         return WithXml(response.Results);
     }
@@ -287,7 +290,7 @@ public sealed class EFacturaClient : IAsyncDisposable
     /// <returns>One entry per invoice asked for.</returns>
     public async Task<IReadOnlyList<EFacturaQrCode>> GetQrCodesAsync(IEnumerable<EFacturaInvoiceId> ids, CancellationToken cancellationToken = default)
     {
-        var response = Checked("GetInvoicesQRcodes", await _client.GetInvoicesQRcodesAsync(Identified(ids)).WaitAsync(cancellationToken).ConfigureAwait(false));
+        var response = Checked("GetInvoicesQRcodes", await Call(_client.GetInvoicesQRcodesAsync(Identified(ids)), cancellationToken));
 
         return (response.Results ?? [])
             .Select(q => new EFacturaQrCode(new EFacturaInvoiceId(q.Seria, q.Number), q.Status == 2, q.Message, q.QRCode, q.QRCodeText))
@@ -314,7 +317,7 @@ public sealed class EFacturaClient : IAsyncDisposable
             ActorRole = (int)role,
             Orientation = landscape ? 2 : 1, // the guide says "Portrait" or "Landscape"; the WSDL wants a number
         };
-        var response = Checked("GetInvoicesContentForPrint", await _client.GetInvoicesContentForPrintAsync(request).WaitAsync(cancellationToken).ConfigureAwait(false));
+        var response = Checked("GetInvoicesContentForPrint", await Call(_client.GetInvoicesContentForPrintAsync(request), cancellationToken));
 
         return response.Result?.Content is { Length: > 0 } content ? content : null;
     }
@@ -330,7 +333,7 @@ public sealed class EFacturaClient : IAsyncDisposable
         IEnumerable<(EFacturaInvoiceId Id, string Reason)> invoices, CancellationToken cancellationToken = default)
     {
         var request = new CanceledRequest { RequestId = Guid.NewGuid().ToString(), InvoicesComments = Commented(invoices) };
-        var response = Checked("PostCanceledInvoices", await _client.PostCanceledInvoicesAsync(request).WaitAsync(cancellationToken).ConfigureAwait(false));
+        var response = Checked("PostCanceledInvoices", await Call(_client.PostCanceledInvoicesAsync(request), cancellationToken));
 
         return Decided(response.Results);
     }
@@ -343,7 +346,7 @@ public sealed class EFacturaClient : IAsyncDisposable
         IEnumerable<(EFacturaInvoiceId Id, string Reason)> invoices, CancellationToken cancellationToken = default)
     {
         var request = new RejectRequest { RequestId = Guid.NewGuid().ToString(), InvoicesComments = Commented(invoices) };
-        var response = Checked("PostRejectedInvoices", await _client.PostRejectedInvoicesAsync(request).WaitAsync(cancellationToken).ConfigureAwait(false));
+        var response = Checked("PostRejectedInvoices", await Call(_client.PostRejectedInvoicesAsync(request), cancellationToken));
 
         return Decided(response.Results);
     }
@@ -356,7 +359,7 @@ public sealed class EFacturaClient : IAsyncDisposable
     {
         var identified = Identified(ids);
         var request = new AcceptedRequest { RequestId = identified.RequestId, SeriaAndNumbers = identified.SeriaAndNumbers };
-        var response = Checked("PostAcceptedInvoices", await _client.PostAcceptedInvoicesAsync(request).WaitAsync(cancellationToken).ConfigureAwait(false));
+        var response = Checked("PostAcceptedInvoices", await Call(_client.PostAcceptedInvoicesAsync(request), cancellationToken));
 
         return Decided(response.Results);
     }
@@ -377,7 +380,7 @@ public sealed class EFacturaClient : IAsyncDisposable
         ArgumentException.ThrowIfNullOrWhiteSpace(idno);
 
         var request = new BankAccountRequest { RequestId = Guid.NewGuid().ToString(), IDNO = idno };
-        var response = Checked("GetBankAccountInfo", await _client.GetBankAccountInfoAsync(request).WaitAsync(cancellationToken).ConfigureAwait(false));
+        var response = Checked("GetBankAccountInfo", await Call(_client.GetBankAccountInfoAsync(request), cancellationToken));
 
         return (response.Results ?? [])
             .Where(b => !string.IsNullOrWhiteSpace(b.AccountNumber))
@@ -396,11 +399,29 @@ public sealed class EFacturaClient : IAsyncDisposable
     public async Task<IReadOnlyList<EFacturaLogEntry>> GetLogsAsync(DateTime from, DateTime to, CancellationToken cancellationToken = default)
     {
         var request = new LogsRequest { RequestId = Guid.NewGuid().ToString(), From = from, To = to };
-        var response = Checked("GetLogs", await _client.GetLogsAsync(request).WaitAsync(cancellationToken).ConfigureAwait(false));
+        var response = Checked("GetLogs", await Call(_client.GetLogsAsync(request), cancellationToken));
 
         return (response.Results ?? [])
             .Select(l => new EFacturaLogEntry(l.Method, l.Username, l.StartDateTime, l.EndDateTime, l.Status, l.Error, l.Response))
             .ToList();
+    }
+
+    /// <summary>
+    /// Waits for a call until the caller stops waiting. The call itself goes on until the binding's
+    /// timeout, so a connection with one given up on is aborted at dispose rather than closed:
+    /// closing would wait for it.
+    /// </summary>
+    private async Task<T> Call<T>(Task<T> call, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await call.WaitAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            _abandoned = true;
+            throw;
+        }
     }
 
     /// <summary>Status 3 is an execution error; 1 (accepted) and 2 (done) carry a usable answer.</summary>
@@ -487,12 +508,12 @@ public sealed class EFacturaClient : IAsyncDisposable
         return binding;
     }
 
-    /// <summary>Closes the connection, or aborts it when it has faulted.</summary>
+    /// <summary>Closes the connection, or aborts it when it has faulted or a call on it was given up on.</summary>
     public async ValueTask DisposeAsync()
     {
         try
         {
-            if (_client.State == CommunicationState.Faulted)
+            if (_abandoned || _client.State == CommunicationState.Faulted)
             {
                 _client.Abort();
             }
