@@ -37,6 +37,35 @@ public sealed class ReplayTests
     }
 
     [Fact]
+    public async Task Archived_invoices_are_listed_for_a_period_and_a_page()
+    {
+        var replay = new Replay();
+        await using var client = Client(replay);
+
+        var archived = Assert.Single(await client.GetArchivedInvoicesAsync(EFacturaActorRole.Buyer, new DateTime(2026, 1, 1), new DateTime(2026, 10, 8), page: 2));
+
+        Assert.Equal((new EFacturaInvoiceId("EXMP", "000000077"), EFacturaInvoiceStatus.Archived), (archived.Id, archived.Status));
+        var body = Assert.Single(replay.Bodies);
+        Assert.Matches(@"<(\w+:)?ActorRole>2</(\w+:)?ActorRole>", body);
+        Assert.Matches(@"<(\w+:)?Page>2</(\w+:)?Page>", body);
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => client.GetArchivedInvoicesAsync(EFacturaActorRole.Buyer, new DateTime(2026, 1, 1), page: 0));
+    }
+
+    [Fact]
+    public async Task Reserving_a_number_says_so_and_asks_for_at_least_one()
+    {
+        var replay = new Replay();
+        await using var client = Client(replay);
+
+        var reserved = Assert.Single(await client.ReserveSeriaAndNumbersAsync(1));
+
+        Assert.Equal(new EFacturaReservedNumber(new EFacturaInvoiceId("EXMP", "000000101"), true), reserved);
+        Assert.Equal("http://tempuri.org/IService/GetSeriaAndNumbers", Assert.Single(replay.Actions));
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => client.ReserveSeriaAndNumbersAsync(0));
+        Assert.Single(replay.Actions);
+    }
+
+    [Fact]
     public async Task The_password_travels_in_the_security_header_and_never_reaches_the_recorder()
     {
         var replay = new Replay();

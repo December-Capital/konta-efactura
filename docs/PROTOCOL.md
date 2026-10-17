@@ -99,6 +99,18 @@ if (!posted.AllPosted)
 }
 ```
 
+Reading an invoice back:
+
+```csharp
+foreach (var found in await client.GetInvoicesAsync([new EFacturaInvoiceId("EAA", "000000123")]))
+{
+    if (found.ReadDocument() is { } document)
+    {
+        Console.WriteLine($"{document.Supplier.Name}: {document.TotalWithVat} ({document.Lines.Count} rows)");
+    }
+}
+```
+
 ## Traps we have already hit
 
 Collected so you do not have to rediscover them.

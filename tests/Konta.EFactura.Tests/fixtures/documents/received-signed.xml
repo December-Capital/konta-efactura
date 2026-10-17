@@ -1,0 +1,24 @@
+<Document>
+  <SupplierInfo>
+    <Seria>EAA</Seria>
+    <Number>000000123</Number>
+    <IssuedDate>2026-10-12T09:30:00+03:00</IssuedDate>
+    <DeliveryDate>2026-10-12T00:00:00Z</DeliveryDate>
+    <Supplier IDNO="1099900000017" Title="&quot;FURNIZOR EXEMPLU&quot; S.R.L." CodTVA="0099001" Address="mun. Chișinău, str. Exemplului 1" TaxpayerType="1">
+      <BankAccount Account="MD77AG000000022510000101" BranchCode="TESTMD2X101" BranchTitle="B.C.'BANCA DE TEST'S.A." />
+    </Supplier>
+    <Buyer IDNO="1099900000028" Title="&quot;CUMPĂRĂTOR EXEMPLU&quot; S.R.L." Address="mun. Bălți, str. Probei 2" TaxpayerType="1">
+      <BankAccount Account="MD24AG000000022510000202" />
+    </Buyer>
+    <Notes>Conform contractului nr. 7</Notes>
+    <Merchandises>
+      <Row Code="H-01" Name="Hârtie A4, 500 coli" UnitOfMeasure="buc" Quantity="10" UnitPriceWithoutTVA="85.50" TotalPriceWithoutTVA="855.00" TVA="20" TotalTVA="171.00" TotalPrice="1026.00" />
+      <Row Name="Pâine albă" UnitOfMeasure="kg" Quantity="2.5" UnitPriceWithoutTVA="12.40" TotalPriceWithoutTVA="31.00" TVA="8" TotalTVA="2.48" TotalPrice="33.48" />
+      <Row Name="Retur ambalaj" UnitOfMeasure="buc" Quantity="-1" UnitPriceWithoutTVA="5.00" TotalPriceWithoutTVA="-5.00" TVA="-" TotalTVA="0.00" TotalPrice="-5.00" />
+    </Merchandises>
+    <CreationMotiv>4</CreationMotiv>
+  </SupplierInfo>
+  <AdditionalInformation>
+    <id>furnizor-42</id>
+  </AdditionalInformation>
+</Document>

@@ -122,6 +122,19 @@ contract and the WSDL disagree on the operations.
       check digit does not make a number free: one picked that way was a real company's. The
       `1099900000xxx` numbers were unassigned then, and the tests use them.
 - [x] **`GetSeriaAndNumbers` reserves**: two calls handed out `EWWW 000067623`, then `000067624`.
+      Its typed method is named for what it does, `ReserveSeriaAndNumbersAsync`, and refuses a
+      count below one before calling.
+- [x] `GetArchivedInvoices` takes a role, an issue-date range and a page (from 1) and answers the
+      same `Invoice` list as a search: `GetArchivedInvoicesAsync`. Not in either guide; empty on the
+      test account so far.
+- [x] **The invoice XML reads back.** `InvoiceDocumentReader` turns the `<Document>` that
+      `GetInvoicesBySeriaNumber` and `GetInvoicesForSigning` return into an `EFacturaDocument`:
+      parties with name, address, VAT code and bank account, the rows as the issuer wrote them, and
+      on a signed invoice the `Seria`, `Number` and `IssuedDate` the schema places at the top of
+      `SupplierInfo`. A row's `TVA` stays a code (`20`, `-`), never a number, since `-` is one of
+      SFS's codes. Read against our own drafts as the test service returned them and against a
+      signed invoice made up in the schema's shape: **no signed invoice has been read from the
+      service yet**, since none could be signed (see signing below).
 - [x] **Per-invoice answers, not faults**, for an invoice the user may not touch or that does not
       exist: `Status` 2 for the call, and per invoice `Status` 3 with `Invoice not found!`,
       `User is not authorized to access this invoice` (`GetInvoicesBySeriaNumber`) or

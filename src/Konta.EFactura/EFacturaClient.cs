@@ -235,6 +235,61 @@ public sealed class EFacturaClient : IAsyncDisposable
         return Listed(response.Results);
     }
 
+    /// <summary>Archived invoices issued in a period, one page at a time (<c>GetArchivedInvoices</c>).</summary>
+    /// <remarks>Not in either guide; answered empty on the test service on 2026-10-08.</remarks>
+    /// <param name="role">Which side the company is on.</param>
+    /// <param name="issuedFrom">Issued on or after.</param>
+    /// <param name="issuedTo">Issued on or before; open when not given.</param>
+    /// <param name="page">The page, from 1.</param>
+    /// <param name="cancellationToken">Cancellation.</param>
+    /// <returns>The invoices on that page.</returns>
+    public async Task<IReadOnlyList<EFacturaInvoice>> GetArchivedInvoicesAsync(
+        EFacturaActorRole role, DateTime issuedFrom, DateTime? issuedTo = null, int page = 1, CancellationToken cancellationToken = default)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(page, 1);
+
+        var request = new ArchivedRequest
+        {
+            RequestId = Guid.NewGuid().ToString(),
+            ActorRole = (int)role,
+            IssuedOn = Range(issuedFrom, issuedTo),
+            Page = page,
+        };
+        var response = Checked("GetArchivedInvoices", await Call(_client.GetArchivedInvoicesAsync(request), cancellationToken));
+
+        return Listed(response.Results);
+    }
+
+    /// <summary>
+    /// <b>Reserves</b> series and numbers for invoices the company will issue (<c>GetSeriaAndNumbers</c>).
+    /// Every call hands out new numbers, which are then the company's whether used or not: it is not a
+    /// lookup (PROTOCOL.md trap 14). Call it only for an invoice about to be issued.
+    /// </summary>
+    /// <param name="count">How many numbers, at least one.</param>
+    /// <param name="invoiceType">The platform's invoice type; 1, as the test service was called with.</param>
+    /// <param name="seria">A series of the company's to number from; empty for the platform's own.</param>
+    /// <param name="cancellationToken">Cancellation. A cancelled call may still have reserved numbers.</param>
+    /// <returns>What the platform handed out.</returns>
+    public async Task<IReadOnlyList<EFacturaReservedNumber>> ReserveSeriaAndNumbersAsync(
+        int count, int invoiceType = 1, string? seria = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(count, 1);
+
+        var request = new SeriaNumberRequest
+        {
+            RequestId = Guid.NewGuid().ToString(),
+            Count = count,
+            InvoiceType = invoiceType,
+            Seria = seria ?? string.Empty,
+            StartNumber = 0,
+        };
+        var response = Checked("GetSeriaAndNumbers", await Call(_client.GetSeriaAndNumbersAsync(request), cancellationToken));
+
+        return (response.Results ?? [])
+            .Select(r => new EFacturaReservedNumber(new EFacturaInvoiceId(r.Seria, r.Number), r.Status == 2))
+            .ToList();
+    }
+
     /// <summary>
     /// What the platform knows of the given IDNOs or IDNPs (<c>GetTaxpayersInfo</c>). Any code can be
     /// asked about, not only counterparties the company already trades with.

@@ -178,7 +178,17 @@ public sealed record EFacturaInvoiceXml(EFacturaInvoiceId Id, bool Found, EFactu
         string.IsNullOrEmpty(Xml)
             ? null
             : System.Xml.Linq.XElement.Parse(Xml).Element("AdditionalInformation")?.Element("id")?.Value;
+
+    /// <summary>The document read from <see cref="Xml"/>, or null when the platform sent none.</summary>
+    /// <returns>The document.</returns>
+    /// <exception cref="FormatException">The XML is not a readable document.</exception>
+    public EFacturaDocument? ReadDocument() => string.IsNullOrEmpty(Xml) ? null : InvoiceDocumentReader.Read(Xml);
 }
+
+/// <summary>A series and number the platform handed out (<c>GetSeriaAndNumbers</c>).</summary>
+/// <param name="Id">The series and number, now reserved for the company.</param>
+/// <param name="Done">Whether the platform reserved it (per-entry <c>Status</c> 2).</param>
+public sealed record EFacturaReservedNumber(EFacturaInvoiceId Id, bool Done);
 
 /// <summary>An invoice's QR code (<c>GetInvoicesQRcodes</c>).</summary>
 /// <param name="Id">Series and number.</param>
