@@ -93,7 +93,8 @@ contract and the WSDL disagree on the operations.
       `InvoiceStatus` 0, an empty `Seria` and `Number`, and a `TimeStamp` of `0001-01-01`. So a
       draft has no series or number to look it up by; our `AdditionalInformation/id` is the handle,
       and `SearchParameters.APIeInvoiceId` does find it. `GetInvoicesForSigning` returns the XML we
-      sent, unchanged. Never read "not found" right after posting as "not posted".
+      sent, unchanged. Never read "not found" right after posting as "not posted". On 2026-10-18
+      a draft was listed eleven minutes after posting, so the delay varies.
 - [x] **Identical drafts are merged.** Three posts of the same content (same parties, date and
       line, different `AdditionalInformation/id`) left one draft in the web interface; drafts that
       differ in amount and line name are all kept (2026-10-08).
@@ -105,8 +106,10 @@ contract and the WSDL disagree on the operations.
 - [x] **`SearchParameters.InvoiceStatus` is a filter, always applied.** 0 finds drafts and only
       drafts; 1 found none of them. A search covers one status at a time. `EFacturaSearch.Status`
       defaults to `Draft`.
-- [x] **`CheckInvoicesStatus` answers HTTP 502** on the test service, every call, whatever the
-      invoice (2026-10-08). Search, or `GetInvoicesBySeriaNumber`, gives the status meanwhile.
+- [x] **`CheckInvoicesStatus` answered HTTP 502** on the test service, every call, whatever the
+      invoice (2026-10-08). **It answers since**: on 2026-10-18 it gave `Status` 2 and, per
+      invoice, the `InvoiceStatus` a search gives (8 for an invoice signed by the buyer). Keep the
+      search as a fallback; the 502 may come back.
 - [x] **`PostInvoicesWithAttachment` fails inside the platform** on every try, with a valid
       one-page PDF and a valid invoice: `Status` 0, zero totals, and the server's exception and
       stack trace in `RequestId`. No typed method until it works.
@@ -151,6 +154,52 @@ contract and the WSDL disagree on the operations.
       you already trade with: any IDNO, including companies the API user's company never traded
       with (2026-10-08 and 2026-10-15). Konta fills a partner's official name, address, VAT code
       and registered bank accounts from it and `GetBankAccountInfo`.
+
+## Seen on 2026-10-18
+
+Every listing on both sides, one invoice by number, decisions on a number no invoice holds, the
+log, and one draft posted and read back, through Konta's gateway. New since the notes above:
+
+- [x] **The service's WSDL has changed since SFS's package of 2026-10-06.** What
+      `https://apiefactura-pre.sfs.md/Service.svc?singleWsdl` serves differs from
+      `spec/sfs/Service.wsdl`: a 20th operation, `DeleteDraftInvoice`, taking a `guid` `Id` and
+      answering a `Message`; `InvoiceIds` (an array of strings) in the `PostInvoices` answer; an
+      `Id` string in `InvoiceIndentificator`, the series-and-number type of every by-number call;
+      and no `Attachment` in `PostInvoices`'s request. The contract test compares the generated
+      contract with the committed WSDL, so it cannot see this: fetch the WSDL again before
+      regenerating. Not regenerated yet, so `EFacturaClient` reads none of the new fields.
+- [x] **A draft now has SFS's own id.** `PostInvoices` answers `InvoiceIds` with one GUID per
+      draft registered (seen since 2026-10-15; the answers of 2026-10-08 had none), and
+      `SearchInvoices` lists the draft with the same GUID in `Id`. `GetInvoicesForSigning` still
+      gives a nil `Id`. With `DeleteDraftInvoice`, that may let a draft be deleted without the web
+      interface; not tried.
+- [x] **`SearchInvoices` needs no criterion but the status**: with only `InvoiceStatus` it lists
+      every invoice of that status on that side. Each listed invoice has a `TimeStamp` of
+      `0001-01-01`.
+- [x] **The test account holds a signed invoice from 2017**, received by the test company,
+      signed by the buyer (status 8), apparently carried over from production. Its XML is in a
+      format older than `TaxInvoiceSchema.xsd`: rows with `UnitPrice`, `TotalCost`, `TotalTVA` and
+      `TotalPrice`, no `TVA` code and no `UnitPriceWithoutTVA`; no `CreationMotiv`; `Total`,
+      `TotalTVA` and `IsFarma` under `SupplierInfo`; `RiskAnalysisValid`, `IsRegistered` and
+      `IsValid` on each party; the buyer's `CodTVA` ten spaces and its `Account` empty with
+      `IsManual` true; two XAdES signatures under `Signatures/SignatureContent/SignedDoc`.
+      `InvoiceDocumentReader` refuses it ("no Row/@UnitPriceWithoutTVA"), so a reader for
+      received invoices has to know the older rows too, and read blanks as absent.
+- [x] **`GetInvoicesContentForPrint` fails inside the platform for a signed invoice**: HTTP 500
+      with SFS's HTML error page ("A apărut o eroare"), whether asked as buyer or as supplier,
+      portrait or landscape. For a number no invoice holds it answers `Status` 0 and no content,
+      as before. No PDF has come back from the service yet.
+- [x] **`GetInvoicesQRcodes` answers an image and a text** for an invoice the company is party to:
+      a 106 by 106 PNG and lines reading series and number, `Valabila (Nevalabila)`, `Furn-` and
+      the supplier's IDNO, `Cump-` and the buyer's, `Suma totala-` and `Suma TVA-` in lei, then a
+      tab and a link to `https://efactura.fisc.md:443/EFactura.aspx?id=` with a GUID.
+- [x] **Accept, refuse and cancel on a number no invoice holds** answer `Status` 2 for the call
+      and `Invoice not found!` per invoice, as the other by-number calls do.
+- [x] **`GetLogs` stays empty** for a day holding dozens of our own calls, from
+      `GetTaxpayersInfo` to `PostInvoices`. It seems not to log API calls, at least on the test
+      service.
+- [x] **`PostInvoices` does not check an IBAN's check digits**: drafts whose buyer account fails
+      the mod-97 check are registered and listed like any other. Check them before posting.
 
 ## Resilience
 
