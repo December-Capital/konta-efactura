@@ -16,7 +16,8 @@ None of it is secret. Passwords, test accounts and real invoices never go in thi
 | `Classificators.xlsx` | The codes e-Factura uses for units of measure (74 of them) and VAT rates (0, 8, 12, 20, and "-") | same |
 | `Ghid_integrare_Semi_Automatizata_{ro,ENG}.pdf` | Guide for connecting a program when a person still signs each invoice by hand (34 pages, dated 2025-09-08) | same; also at `efactura.sfs.md/Help/` |
 | `Ghid_integrare_Complet_Automatizata_{ro,ENG}.pdf` | Guide for connecting a program that also signs invoices itself (43 pages, dated 2025-09-08) | same |
-| `Service.wsdl` | The machine-readable list of everything the service can do | downloaded 2026-10-06 from `https://efactura-api.sfs.md/Service.svc?singleWsdl` |
+| `Service.wsdl` | The machine-readable list of everything the **test** service can do; the program's contract is made from it | downloaded 2026-10-22 from `https://apiefactura-pre.sfs.md/Service.svc?singleWsdl`, from the registered address |
+| `Service-production.wsdl` | The same list for the real service, which was behind the test service that day | downloaded 2026-10-06 from `https://efactura-api.sfs.md/Service.svc?singleWsdl`, and again on 2026-10-22, unchanged |
 
 Don't copy SFS's two example invoices. Checked against SFS's own format, both fail: they contain
 notes typed as text in the middle of the file (`// In cazul in care data lipse?te…`), and the
@@ -34,16 +35,18 @@ file itself.
 | Real service for programs | `https://efactura-api.sfs.md/Service.svc` |
 
 The test addresses only answer computers whose internet address SFS has registered; everyone else
-gets `403`. The real service shows its description to anyone. A program logs in with a user name
+gets `403`. The real service shows its description to anyone except, on 2026-10-22, the one address
+registered for the test service. A program logs in with a user name
 and password sent inside each request, over HTTPS (`basicHttpBinding` with
 `TransportWithMessageCredential`, contract `E_FacturaService.IService`).
 
 ## What the service can do
 
-The guides describe 15 operations. The service itself has 19: `Test`, `GetArchivedInvoices`,
-`GetBankAccountInfo` and `GetSeriaAndNumbers` are missing from both guides.
+The guides describe 15 operations. The real service has 19: `Test`, `GetArchivedInvoices`,
+`GetBankAccountInfo` and `GetSeriaAndNumbers` are missing from both guides. The test service has a
+20th since October 2026, `DeleteDraftInvoice`, which deletes a draft by the id SFS gave it.
 
-`CheckInvoicesStatus` · `GetAcceptedInvoices` · `GetArchivedInvoices` · `GetBankAccountInfo` ·
+`CheckInvoicesStatus` · `DeleteDraftInvoice` (test service only) · `GetAcceptedInvoices` · `GetArchivedInvoices` · `GetBankAccountInfo` ·
 `GetInvoicesBySeriaNumber` · `GetInvoicesContentForPrint` · `GetInvoicesForSigning` ·
 `GetInvoicesQRcodes` · `GetLogs` · `GetRejectedInvoices` · `GetSeriaAndNumbers` ·
 `GetTaxpayersInfo` · `PostAcceptedInvoices` · `PostCanceledInvoices` · `PostInvoices` ·

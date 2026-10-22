@@ -1,3 +1,6 @@
+using System.Globalization;
+using System.Xml.Linq;
+
 namespace Konta.EFactura.Tests;
 
 /// <summary>
@@ -52,31 +55,97 @@ public sealed class LiveTests
     }
 
     /// <summary>
-    /// Leaves a draft on the test account at every run, which only the web interface can delete; so
-    /// it runs only when <c>KONTA_EFACTURA_IDNO</c> names the API user's company.
+    /// Posts a draft as the API user's company, so it runs only when <c>KONTA_EFACTURA_IDNO</c> names
+    /// it; reads it back by the id the platform gave and deletes it by that id, so the run leaves
+    /// nothing. Only its own draft: the others on the test account are kept for a person, one of them
+    /// (<c>konta-registered-15</c>) with the registered accounts for the signing attempt.
     /// </summary>
     [LivePostFact]
-    public async Task A_valid_invoice_is_posted_as_a_draft()
+    public async Task A_draft_is_posted_with_the_platforms_id_read_back_and_deleted_by_it()
     {
-        var live = LiveSettings.Load()!;
-        var invoice = new Invoice
-        {
-            SupplierIdno = live.Idno!,
-            BuyerIdno = "1002600004030", // a company from SFS's guide, an e-Factura actor on the test service
-            SupplierBankAccount = "MD24AG000225100013104168",
-            BuyerBankAccount = "MD21EX000000022241410046",
-            DeliveryDate = DateTimeOffset.Now,
-
-            // The test company is not a VAT payer: the platform takes only motive 1 or 2 from it, at a 0 rate.
-            CreationMotive = CreationMotive.SupplyDocumentation,
-            CorrelationId = "konta-live-" + DateTime.UtcNow.ToString("yyyyMMddHHmmss", System.Globalization.CultureInfo.InvariantCulture),
-            Lines = [new InvoiceLine { Code = "1", Name = "Servicii de testare", UnitOfMeasure = "buc", Quantity = 1m, UnitPriceWithoutVat = 10m, VatPercent = 0m }],
-        };
+        var invoice = Draft("konta-live-");
 
         var result = await Live("PostInvoices", client => client.PostInvoicesAsync([invoice]));
+        var id = Assert.Single(result.DraftIds);
+        var fetched = Assert.Single(await Live("GetInvoicesBySeriaNumber-posted", client => client.GetDraftsAsync([id])));
+        var deletion = await Live("DeleteDraftInvoice", client => client.DeleteDraftAsync(id));
+        var after = await Live("SearchInvoices-after-delete", client => client.SearchInvoicesAsync(EFacturaActorRole.Supplier, new EFacturaSearch()));
+        var gone = Assert.Single(await Live("GetInvoicesBySeriaNumber-deleted", client => client.GetDraftsAsync([id])));
 
         Assert.True(result.AllPosted, result.ErrorMessage);
         Assert.Empty(result.Refusals);
+
+        // A search may list a draft only minutes after posting; asked by its id, the platform answers at once.
+        Assert.True(fetched.Found, fetched.Message);
+        Assert.Equal((EFacturaInvoiceStatus.Draft, id, invoice.CorrelationId), (fetched.Status, fetched.PlatformId, fetched.CorrelationId));
+
+        Assert.True(deletion.Accepted, deletion.Message);
+        Assert.DoesNotContain(after, d => d.PlatformId == id);
+
+        // Asked for by its id, a deleted draft is still answered, with a status of its own and no id.
+        Assert.Equal((EFacturaInvoiceStatus.DeletedDraft, null as Guid?, invoice.CorrelationId), (gone.Status, gone.PlatformId, gone.CorrelationId));
+    }
+
+    [LiveFact]
+    public async Task Deleting_a_draft_nobody_holds_is_answered_as_done_all_the_same()
+    {
+        var deletion = await Live("DeleteDraftInvoice-unknown", client => client.DeleteDraftAsync(Guid.NewGuid()));
+
+        // The same answer as for a draft it deleted: the answer is no proof (SOAP-NOTES.md).
+        Assert.True(deletion.Accepted);
+        Assert.False(string.IsNullOrWhiteSpace(deletion.Message));
+    }
+
+    [LivePostFact]
+    public async Task Drafts_are_listed_by_a_search_with_the_platforms_id_and_for_signing_without_it()
+    {
+        // Drafts from earlier runs, posted here and by the konta repository's gateway tests.
+        var searched = await Live("SearchInvoices-drafts", client => client.SearchInvoicesAsync(EFacturaActorRole.Supplier, new EFacturaSearch()));
+        var toSign = await Live("GetInvoicesForSigning-drafts", client => client.GetInvoicesForSigningAsync(EFacturaActorRole.Supplier));
+
+        Assert.NotEmpty(searched);
+        Assert.All(searched, d => Assert.NotNull(d.PlatformId));
+        Assert.NotEmpty(toSign);
+        Assert.All(toSign, d => Assert.Null(d.PlatformId));
+    }
+
+    [LiveFact]
+    public async Task The_signed_invoice_of_2017_is_read_in_the_older_format()
+    {
+        // The one invoice the test account holds that is not a draft: received, signed by the buyer.
+        var signed = await Live("SearchInvoices-signed-by-buyer", client => client.SearchInvoicesAsync(
+            EFacturaActorRole.Buyer, new EFacturaSearch { Status = EFacturaInvoiceStatus.SignedByBuyer }));
+        var invoice = Assert.Single(signed);
+
+        var found = Assert.Single(await Live("GetInvoicesBySeriaNumber-older", client => client.GetInvoicesAsync([invoice.Id])));
+        var status = Assert.Single(await Live("CheckInvoicesStatus", client => client.CheckInvoicesStatusAsync([invoice.Id])));
+        var document = found.ReadDocument()!;
+
+        Assert.True(found.Found);
+        Assert.True(document.OlderFormat);
+        Assert.Equal((invoice.Id.Seria, invoice.Id.Number), (document.Seria, document.Number));
+        Assert.Null(document.CreationMotive);
+        Assert.All(document.Lines, l => Assert.Null(l.VatCode));
+        Assert.Equal(EFacturaInvoiceStatus.SignedByBuyer, status.Status);
+    }
+
+    [LiveFact]
+    public async Task The_test_service_publishes_the_committed_wsdl()
+    {
+        var live = LiveSettings.Load()!;
+
+        // A difference means SFS changed the service: commit its WSDL and regenerate (SOAP-NOTES.md).
+        Assert.Equal(Wsdl.Shape(Wsdl.Committed("Service.wsdl")), Wsdl.Shape(await Published(EFacturaEndpoints.Test, live.Proxy)));
+    }
+
+    /// <summary>
+    /// Production's WSDL is public, but production answers the test service's registered address (the
+    /// VPS) with 403, so this runs where <c>KONTA_EFACTURA_PRODUCTION_WSDL</c> is set: anywhere else.
+    /// </summary>
+    [ProductionWsdlFact]
+    public async Task Production_publishes_the_committed_wsdl()
+    {
+        Assert.Equal(Wsdl.Shape(Wsdl.Committed("Service-production.wsdl")), Wsdl.Shape(await Published(EFacturaEndpoints.Production, proxy: null)));
     }
 
     [LiveFact]
@@ -169,6 +238,38 @@ public sealed class LiveTests
         await Live("GetLogs", client => client.GetLogsAsync(DateTime.Today.AddDays(-7), DateTime.Today.AddDays(1)));
     }
 
+    /// <summary>A draft to the guide's company that no other draft says the same as, so the platform merges it with none.</summary>
+    private static Invoice Draft(string prefix)
+    {
+        var live = LiveSettings.Load()!;
+        var now = DateTime.UtcNow;
+
+        return new Invoice
+        {
+            SupplierIdno = live.Idno!,
+            BuyerIdno = "1002600004030", // a company from SFS's guide, an e-Factura actor on the test service
+            SupplierBankAccount = "MD24AG000225100013104168",
+            BuyerBankAccount = "MD21EX000000022241410046",
+            DeliveryDate = DateTimeOffset.Now,
+
+            // The test company is not a VAT payer: the platform takes only motive 1 or 2 from it, at a 0 rate.
+            CreationMotive = CreationMotive.SupplyDocumentation,
+            CorrelationId = prefix + now.ToString("yyyyMMddHHmmss", CultureInfo.InvariantCulture),
+            Lines = [new InvoiceLine { Code = "1", Name = "Servicii de testare", UnitOfMeasure = "buc", Quantity = 1m, UnitPriceWithoutVat = 10m + ((now.Second * 100) + (now.Millisecond / 10)) / 100m, VatPercent = 0m }],
+        };
+    }
+
+    /// <summary>The WSDL a service publishes.</summary>
+    private static async Task<XDocument> Published(Uri address, Uri? proxy)
+    {
+        using var http = new HttpClient(proxy is null ? new HttpClientHandler() : new HttpClientHandler { Proxy = new System.Net.WebProxy(proxy), UseProxy = true })
+        {
+            Timeout = TimeSpan.FromMinutes(1),
+        };
+
+        return XDocument.Parse(await http.GetStringAsync(new Uri(address + "?singleWsdl")));
+    }
+
     /// <summary>One call to the test service, its exchange written to <c>fixtures/live/</c>.</summary>
     private static async Task<T> Live<T>(string operation, Func<EFacturaClient, Task<T>> call)
     {
@@ -204,6 +305,21 @@ public sealed class LiveFactAttribute : FactAttribute
     }
 }
 
+/// <summary>
+/// A fact that fetches production's WSDL, run only where <c>KONTA_EFACTURA_PRODUCTION_WSDL</c> is set
+/// (in the environment or <c>.env</c>): production refuses the VPS, the one address the live tests run from.
+/// </summary>
+public sealed class ProductionWsdlFactAttribute : FactAttribute
+{
+    public ProductionWsdlFactAttribute()
+    {
+        if (string.IsNullOrEmpty(LiveSettings.Value("KONTA_EFACTURA_PRODUCTION_WSDL")))
+        {
+            Skip = "Fetches production's WSDL: set KONTA_EFACTURA_PRODUCTION_WSDL=1 where production answers (not the VPS).";
+        }
+    }
+}
+
 /// <summary>A live fact that also needs the API user's company IDNO, because it posts as that company.</summary>
 public sealed class LivePostFactAttribute : FactAttribute
 {
@@ -218,16 +334,19 @@ public sealed class LivePostFactAttribute : FactAttribute
 
 internal sealed record LiveSettings(string User, string Password, string? Idno, Uri? Proxy, string Root)
 {
+    /// <summary>A setting from the environment, else from the repository's <c>.env</c>.</summary>
+    public static string? Value(string name)
+    {
+        var root = RepositoryRoot();
+
+        return Environment.GetEnvironmentVariable(name) is { Length: > 0 } fromEnvironment
+            ? fromEnvironment
+            : root is null ? null : ReadDotEnv(Path.Combine(root, ".env")).GetValueOrDefault(name);
+    }
+
     public static LiveSettings? Load()
     {
         var root = RepositoryRoot();
-        var file = root is null ? new Dictionary<string, string>() : ReadDotEnv(Path.Combine(root, ".env"));
-
-        string? Value(string name) =>
-            Environment.GetEnvironmentVariable(name) is { Length: > 0 } fromEnvironment
-                ? fromEnvironment
-                : file.GetValueOrDefault(name);
-
         var user = Value("KONTA_EFACTURA_USER");
         var password = Value("KONTA_EFACTURA_PASSWORD");
         var idno = Value("KONTA_EFACTURA_IDNO");
@@ -243,7 +362,7 @@ internal sealed record LiveSettings(string User, string Password, string? Idno, 
     {
         var folder = Path.Combine(Root, "fixtures", "live");
         Directory.CreateDirectory(folder);
-        var stamp = DateTime.UtcNow.ToString("yyyyMMdd'T'HHmmss'Z'", System.Globalization.CultureInfo.InvariantCulture);
+        var stamp = DateTime.UtcNow.ToString("yyyyMMdd'T'HHmmss'Z'", CultureInfo.InvariantCulture);
 
         foreach (var (direction, message) in messages)
         {

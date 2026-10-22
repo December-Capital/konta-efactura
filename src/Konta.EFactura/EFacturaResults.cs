@@ -18,11 +18,11 @@ public enum EFacturaActorRole
 
 /// <summary>
 /// Where an invoice is in its life on the platform (<c>InvoiceStatus</c>). 4 and 9 are not issued,
-/// and the order is not a progression.
+/// and the order is not a progression. 99 is not in either guide.
 /// </summary>
 public enum EFacturaInvoiceStatus
 {
-    /// <summary>Posted, not signed. Deletable only in the web interface.</summary>
+    /// <summary>Posted, not signed. Deleted by its platform id (<see cref="EFacturaClient.DeleteDraftAsync"/>) or in the web interface.</summary>
     Draft = 0,
 
     /// <summary>Signed by the supplier.</summary>
@@ -48,6 +48,12 @@ public enum EFacturaInvoiceStatus
 
     /// <summary>The goods or services were received.</summary>
     Transported = 10,
+
+    /// <summary>
+    /// A draft deleted by <see cref="EFacturaClient.DeleteDraftAsync"/>: what <see cref="EFacturaClient.GetDraftsAsync"/>
+    /// answers for it, with its XML still and no id (the test service, 2026-10-22).
+    /// </summary>
+    DeletedDraft = 99,
 }
 
 /// <summary>An invoice's series and number, which the platform assigns.</summary>
@@ -56,11 +62,16 @@ public enum EFacturaInvoiceStatus
 public sealed record EFacturaInvoiceId(string Seria, string Number);
 
 /// <summary>One invoice as a listing or a status check returned it.</summary>
-/// <param name="Id">Series and number.</param>
+/// <param name="Id">Series and number; both empty on a draft.</param>
 /// <param name="Status">Where the invoice is.</param>
 /// <param name="Message">The platform's note on this invoice, when it has one; set when it could not be looked up.</param>
 /// <param name="TimeStamp">When the platform answered for it, by its own clock.</param>
-public sealed record EFacturaInvoice(EFacturaInvoiceId Id, EFacturaInvoiceStatus Status, string? Message, DateTime TimeStamp);
+/// <param name="PlatformId">
+/// The platform's own id for the invoice (<c>Id</c>): set on a draft, the id <see cref="EFacturaPostResult.DraftIds"/>
+/// gave and <see cref="EFacturaClient.DeleteDraftAsync"/> takes; null where the platform sends none, as for
+/// a signed invoice so far.
+/// </param>
+public sealed record EFacturaInvoice(EFacturaInvoiceId Id, EFacturaInvoiceStatus Status, string? Message, DateTime TimeStamp, Guid? PlatformId = null);
 
 /// <summary>
 /// What <see cref="EFacturaClient.SearchInvoicesAsync"/> looks for. Every criterion is optional; a
@@ -133,7 +144,14 @@ public sealed record EFacturaRefusal(int Order, string Message);
 /// <param name="Posted">Invoices it registered.</param>
 /// <param name="Refusals">The invoices it refused, and why.</param>
 /// <param name="ErrorMessage">The platform's message as it sent it.</param>
-public sealed record EFacturaPostResult(string? RequestId, int Total, int Posted, IReadOnlyList<EFacturaRefusal> Refusals, string? ErrorMessage)
+/// <param name="DraftIds">
+/// The platform's id for each draft it registered (<c>InvoiceIds</c>), in the order it sent them: the
+/// handle <see cref="EFacturaClient.DeleteDraftAsync"/> takes and <see cref="EFacturaInvoice.PlatformId"/>
+/// lists. Empty from a service that sends none (production's WSDL had none on 2026-10-22). Which id
+/// belongs to which invoice is certain only for a batch of one.
+/// </param>
+public sealed record EFacturaPostResult(
+    string? RequestId, int Total, int Posted, IReadOnlyList<EFacturaRefusal> Refusals, string? ErrorMessage, IReadOnlyList<Guid> DraftIds)
 {
     /// <summary>Whether every invoice in the batch was registered.</summary>
     public bool AllPosted => Total > 0 && Posted == Total;
@@ -168,7 +186,8 @@ public sealed record EFacturaInvoiceResult(EFacturaInvoiceId Id, bool Done, stri
 /// <param name="Status">Where the invoice is.</param>
 /// <param name="Message">Why it was not returned, for example <c>Invoice not found!</c>.</param>
 /// <param name="Xml">The <c>&lt;Document&gt;</c>, when found.</param>
-public sealed record EFacturaInvoiceXml(EFacturaInvoiceId Id, bool Found, EFacturaInvoiceStatus Status, string? Message, string? Xml)
+/// <param name="PlatformId">The platform's own id, when it sends one; <c>GetInvoicesForSigning</c> sends none, even for a draft.</param>
+public sealed record EFacturaInvoiceXml(EFacturaInvoiceId Id, bool Found, EFacturaInvoiceStatus Status, string? Message, string? Xml, Guid? PlatformId = null)
 {
     /// <summary>
     /// Our own id from the document's <c>AdditionalInformation/id</c>: the only handle on a draft,
@@ -184,6 +203,15 @@ public sealed record EFacturaInvoiceXml(EFacturaInvoiceId Id, bool Found, EFactu
     /// <exception cref="FormatException">The XML is not a readable document.</exception>
     public EFacturaDocument? ReadDocument() => string.IsNullOrEmpty(Xml) ? null : InvoiceDocumentReader.Read(Xml);
 }
+
+/// <summary>
+/// What the platform answered to deleting a draft (<c>DeleteDraftInvoice</c>). Not whether it deleted
+/// one: it answers the same for an id it never had (<see cref="EFacturaClient.DeleteDraftAsync"/>).
+/// </summary>
+/// <param name="DraftId">The platform's id of the draft.</param>
+/// <param name="Accepted">Whether the platform answered "done" (<c>Status</c> 2).</param>
+/// <param name="Message">The platform's message, in its words.</param>
+public sealed record EFacturaDraftDeletion(Guid DraftId, bool Accepted, string? Message);
 
 /// <summary>A series and number the platform handed out (<c>GetSeriaAndNumbers</c>).</summary>
 /// <param name="Id">The series and number, now reserved for the company.</param>

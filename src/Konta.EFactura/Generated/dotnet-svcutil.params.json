@@ -12,8 +12,8 @@
     "outputFile": "EFacturaService.cs",
     "references": [
       "Microsoft.Extensions.ObjectPool, {Microsoft.Extensions.ObjectPool, 8.0.10}",
-      "System.Security.Cryptography.Pkcs, {System.Security.Cryptography.Pkcs, 8.0.1}",
-      "System.Security.Cryptography.Xml, {System.Security.Cryptography.Xml, 8.0.2}"
+      "System.Security.Cryptography.Pkcs, {System.Security.Cryptography.Pkcs, 9.0.21}",
+      "System.Security.Cryptography.Xml, {System.Security.Cryptography.Xml, 9.0.21}"
     ],
     "sync": true,
     "targetFramework": "net9.0",
