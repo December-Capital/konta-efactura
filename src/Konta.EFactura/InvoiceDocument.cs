@@ -24,7 +24,8 @@ public sealed record EFacturaParty(
 /// <param name="TotalWithoutVat">The row without VAT, as the issuer computed it.</param>
 /// <param name="VatCode">
 /// The <c>TVA</c> attribute as written: a code from SFS's classifier (<c>20</c>, <c>8</c>, <c>0</c>,
-/// <c>-</c>), not a number to compute with. Which rate it stands for is the caller's question.
+/// <c>-</c>), not a number to compute with. Which rate it stands for is the caller's question. Null on
+/// a row of the older format (<see cref="EFacturaDocument.OlderFormat"/>), which states no rate.
 /// </param>
 /// <param name="Vat">The row's VAT, as the issuer computed it.</param>
 /// <param name="TotalWithVat">The row with VAT.</param>
@@ -35,7 +36,7 @@ public sealed record EFacturaDocumentLine(
     decimal Quantity,
     decimal UnitPriceWithoutVat,
     decimal TotalWithoutVat,
-    string VatCode,
+    string? VatCode,
     decimal Vat,
     decimal TotalWithVat);
 
@@ -44,6 +45,12 @@ public sealed record EFacturaDocumentLine(
 /// <c>GetInvoicesForSigning</c>), in SFS's own terms. Amounts are as the issuer wrote them, never
 /// recomputed here.
 /// </summary>
+/// <remarks>
+/// Invoices issued before <c>TaxInvoiceSchema.xsd</c> are in an older format, which the test service
+/// still returns for one signed in 2017: rows with <c>UnitPrice</c> and <c>TotalCost</c> and no
+/// <c>TVA</c> code, no <c>CreationMotiv</c>. They are read too, with <see cref="OlderFormat"/> set and
+/// what that format does not state left null.
+/// </remarks>
 /// <param name="Seria">The series, on a signed invoice.</param>
 /// <param name="Number">The number, on a signed invoice.</param>
 /// <param name="IssuedDate">When it was issued, on a signed invoice.</param>
@@ -52,12 +59,13 @@ public sealed record EFacturaDocumentLine(
 /// <param name="Buyer">The buyer.</param>
 /// <param name="CreationMotive">
 /// <c>CreationMotiv</c> as written: 1 to 3 from an issuer outside VAT, 4 (delivery) or 5
-/// (non-delivery) from a VAT payer.
+/// (non-delivery) from a VAT payer. Null in the older format, which has none.
 /// </param>
 /// <param name="Notes">The issuer's note.</param>
 /// <param name="AttachedDocuments">The documents the issuer lists as attached.</param>
 /// <param name="CorrelationId">The issuer's own id, <c>AdditionalInformation/id</c>, when it set one.</param>
 /// <param name="Lines">The rows.</param>
+/// <param name="OlderFormat">Whether it is in the format before SFS's current schema (see the remarks).</param>
 public sealed record EFacturaDocument(
     string? Seria,
     string? Number,
@@ -65,11 +73,12 @@ public sealed record EFacturaDocument(
     DateTimeOffset DeliveryDate,
     EFacturaParty Supplier,
     EFacturaParty Buyer,
-    int CreationMotive,
+    int? CreationMotive,
     string? Notes,
     string? AttachedDocuments,
     string? CorrelationId,
-    IReadOnlyList<EFacturaDocumentLine> Lines)
+    IReadOnlyList<EFacturaDocumentLine> Lines,
+    bool OlderFormat = false)
 {
     /// <summary>The rows without VAT.</summary>
     public decimal TotalWithoutVat => Lines.Sum(l => l.TotalWithoutVat);
@@ -80,16 +89,22 @@ public sealed record EFacturaDocument(
     /// <summary>The rows with VAT.</summary>
     public decimal TotalWithVat => Lines.Sum(l => l.TotalWithVat);
 
-    /// <summary>Whether the issuer wrote it as a VAT payer (<c>CreationMotiv</c> 4 or 5).</summary>
-    public bool IssuedByVatPayer => CreationMotive is 4 or 5;
+    /// <summary>
+    /// Whether the issuer wrote it as a VAT payer (<c>CreationMotiv</c> 4 or 5); null when the document
+    /// does not say, as in the older format. A VAT code on the supplier is not the same statement.
+    /// </summary>
+    public bool? IssuedByVatPayer => CreationMotive is { } motive ? motive is 4 or 5 : null;
 }
 
 /// <summary>Reads the platform's invoice XML back into <see cref="EFacturaDocument"/>s.</summary>
 /// <remarks>
 /// Tolerant of what the schema leaves optional and strict on what it requires: a document without a
 /// supplier, a buyer, a delivery date, <c>CreationMotiv</c> or a row is refused with a
-/// <see cref="FormatException"/> naming what is missing, never half read. Numbers and dates are read
-/// invariantly, whatever the ambient culture (PROTOCOL.md trap 4).
+/// <see cref="FormatException"/> naming what is missing, never half read. A document whose rows are
+/// in the older format (<c>TotalCost</c> rather than <c>TotalPriceWithoutTVA</c>) is held to that
+/// format instead, which has no <c>CreationMotiv</c> and no <c>TVA</c> code; one mixing both kinds
+/// of row is refused. Blank values, such as the ten spaces of an older document's missing VAT code,
+/// are absent. Numbers and dates are read invariantly, whatever the ambient culture (PROTOCOL.md trap 4).
 /// </remarks>
 public static class InvoiceDocumentReader
 {
@@ -138,12 +153,20 @@ public static class InvoiceDocumentReader
     private static EFacturaDocument Document(XElement document)
     {
         var info = document.Element("SupplierInfo") ?? throw Missing("SupplierInfo");
-        var rows = (info.Element("Merchandises") ?? throw Missing("Merchandises")).Elements("Row").Select(Row).ToList();
+        var elements = (info.Element("Merchandises") ?? throw Missing("Merchandises")).Elements("Row").ToList();
 
-        if (rows.Count == 0)
+        if (elements.Count == 0)
         {
             throw Missing("Merchandises/Row");
         }
+
+        var older = elements.Select(IsOlderRow).Distinct().ToList() switch
+        {
+            [var one] => one,
+            _ => throw new FormatException("The invoice mixes rows of the current format with rows of the older one (TotalCost)."),
+        };
+        var rows = elements.Select(e => older ? OlderRow(e) : Row(e)).ToList();
+        var motive = info.Element("CreationMotiv");
 
         return new EFacturaDocument(
             Text(info.Element("Seria")),
@@ -152,12 +175,17 @@ public static class InvoiceDocumentReader
             Date(info.Element("DeliveryDate") ?? throw Missing("DeliveryDate"), "DeliveryDate"),
             Party(info.Element("Supplier") ?? throw Missing("Supplier")),
             Party(info.Element("Buyer") ?? throw Missing("Buyer")),
-            Integer(info.Element("CreationMotiv") ?? throw Missing("CreationMotiv"), "CreationMotiv"),
+            motive is not null ? Integer(motive, "CreationMotiv") : older ? null : throw Missing("CreationMotiv"),
             Text(info.Element("Notes")),
             Text(info.Element("AttachedDocuments")),
             Text(document.Element("AdditionalInformation")?.Element("id")),
-            rows);
+            rows,
+            older);
     }
+
+    // The older format's rows give the row without VAT as TotalCost; the current one's never do.
+    private static bool IsOlderRow(XElement row) =>
+        row.Attribute("TotalCost") is not null && row.Attribute("TotalPriceWithoutTVA") is null && row.Attribute("UnitPriceWithoutTVA") is null;
 
     private static EFacturaParty Party(XElement party)
     {
@@ -186,6 +214,28 @@ public static class InvoiceDocumentReader
             Amount(Required("UnitPriceWithoutTVA"), "UnitPriceWithoutTVA"),
             Amount(Required("TotalPriceWithoutTVA"), "TotalPriceWithoutTVA"),
             Required("TVA"),
+            Amount(Required("TotalTVA"), "TotalTVA"),
+            Amount(Required("TotalPrice"), "TotalPrice"));
+    }
+
+    /// <summary>
+    /// A row of the older format: <c>UnitPrice</c> and <c>TotalCost</c> without VAT (as the paper form's
+    /// columns are; the one such invoice seen charged no VAT, so the two readings could not be told
+    /// apart there), <c>TotalTVA</c> and <c>TotalPrice</c> as now, and no rate.
+    /// </summary>
+    private static EFacturaDocumentLine OlderRow(XElement row)
+    {
+        string Required(string attribute) =>
+            Text(row.Attribute(attribute)?.Value) ?? throw Missing("Row/@" + attribute);
+
+        return new EFacturaDocumentLine(
+            Text(row.Attribute("Code")?.Value),
+            Required("Name"),
+            Required("UnitOfMeasure"),
+            Amount(Required("Quantity"), "Quantity"),
+            Amount(Required("UnitPrice"), "UnitPrice"),
+            Amount(Required("TotalCost"), "TotalCost"),
+            Text(row.Attribute("TVA")?.Value),
             Amount(Required("TotalTVA"), "TotalTVA"),
             Amount(Required("TotalPrice"), "TotalPrice"));
     }

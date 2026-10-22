@@ -137,7 +137,8 @@ public sealed class EFacturaClient : IAsyncDisposable
     /// <summary>
     /// Posts invoices the company issued, unsigned, as the semi-automated guide describes: they land
     /// as drafts, and a person signs them in the web interface. The answer carries no series or
-    /// number; find the invoices afterwards by <see cref="Invoice.CorrelationId"/>.
+    /// number, but the platform's id for each draft registered (<see cref="EFacturaPostResult.DraftIds"/>);
+    /// find the invoices afterwards by that id or by <see cref="Invoice.CorrelationId"/>.
     /// </summary>
     /// <param name="invoices">One or more invoices, all with this company as supplier.</param>
     /// <param name="requestId">Our id for the request; a new one when not given. Keep it to reconcile a timeout.</param>
@@ -162,11 +163,80 @@ public sealed class EFacturaClient : IAsyncDisposable
             response.TotalInvoices,
             response.TotalInvoicesPosted,
             EFacturaPostResult.ParseRefusals(response.ErrorMessage),
-            response.ErrorMessage);
+            response.ErrorMessage,
+            [.. (response.InvoiceIds ?? []).Select(PlatformId).OfType<Guid>()]);
+    }
+
+    /// <summary>
+    /// Deletes a draft the company posted, by the platform's id for it (<c>DeleteDraftInvoice</c>):
+    /// the id <see cref="EFacturaPostResult.DraftIds"/> gave, or <see cref="EFacturaInvoice.PlatformId"/>
+    /// on a draft a search listed. Only a draft: a signed invoice is cancelled, never deleted.
+    /// </summary>
+    /// <remarks>
+    /// <para>On SFS's test service since October 2026; production's WSDL did not have it on 2026-10-22.</para>
+    /// <para>
+    /// <b>The answer proves nothing.</b> The test service answers <c>Status</c> 2 and "Factura Draft a
+    /// fost ștearsă cu succes." for any id: a listed draft, which it does delete at once, the same id
+    /// again, and an id it never had (2026-10-22). Whether a draft is gone, a search for drafts or
+    /// <see cref="GetDraftsAsync"/> says.
+    /// </para>
+    /// </remarks>
+    /// <param name="draftId">The platform's id of the draft.</param>
+    /// <param name="cancellationToken">Cancellation. The call itself may still finish on the server.</param>
+    /// <returns>What the platform answered.</returns>
+    /// <exception cref="EFacturaException">The platform answered with an execution error.</exception>
+    public async Task<EFacturaDraftDeletion> DeleteDraftAsync(Guid draftId, CancellationToken cancellationToken = default)
+    {
+        if (draftId == Guid.Empty)
+        {
+            throw new ArgumentException("A draft's platform id is required.", nameof(draftId));
+        }
+
+        var request = new DeleteInvoiceRequest { RequestId = Guid.NewGuid().ToString(), Id = draftId };
+        var response = Checked("DeleteDraftInvoice", await Call(_client.DeleteDraftInvoiceAsync(request), cancellationToken), r => r.Message);
+
+        return new EFacturaDraftDeletion(draftId, response.Status == 2, response.Message);
+    }
+
+    /// <summary>
+    /// Drafts by the platform's id, with their XML (<c>GetInvoicesBySeriaNumber</c> asked with the
+    /// <c>Id</c> alone): the way from an id a search listed to the draft's content and our
+    /// <see cref="Invoice.CorrelationId"/>, which <c>GetInvoicesForSigning</c> gives without the id.
+    /// </summary>
+    /// <remarks>
+    /// Seen on the test service on 2026-10-22: a draft answered at once with its XML and its id, even
+    /// one posted a second before; a deleted one with <see cref="EFacturaInvoiceStatus.DeletedDraft"/>,
+    /// its XML and no id.
+    /// </remarks>
+    /// <param name="draftIds">The platform's ids.</param>
+    /// <param name="cancellationToken">Cancellation.</param>
+    /// <returns>One entry per draft asked for; one the platform does not hold is not <see cref="EFacturaInvoiceXml.Found"/>.</returns>
+    public async Task<IReadOnlyList<EFacturaInvoiceXml>> GetDraftsAsync(IEnumerable<Guid> draftIds, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(draftIds);
+
+        var identifiers = draftIds
+            .Select(id => id == Guid.Empty
+                ? throw new ArgumentException("A draft's platform id is required.", nameof(draftIds))
+                : new InvoiceIndentificator { Id = id.ToString(), Seria = string.Empty, Number = string.Empty })
+            .ToArray();
+
+        if (identifiers.Length == 0)
+        {
+            throw new ArgumentException("At least one draft is required.", nameof(draftIds));
+        }
+
+        var request = new InvoicesRequest { RequestId = Guid.NewGuid().ToString(), SeriaAndNumbers = identifiers };
+        var response = Checked("GetInvoicesBySeriaNumber", await Call(_client.GetInvoicesBySeriaNumberAsync(request), cancellationToken), r => r.Message);
+
+        return WithXml(response.Results);
     }
 
     /// <summary>Where each of the given invoices is now (<c>CheckInvoicesStatus</c>).</summary>
-    /// <remarks>The test service answered this operation with HTTP 502 on every call on 2026-10-08.</remarks>
+    /// <remarks>
+    /// The test service answered this operation with HTTP 502 on every call on 2026-10-08, and has
+    /// answered it since 2026-10-18; the 502 may come back, so keep a search as the fallback.
+    /// </remarks>
     /// <param name="ids">Series and numbers.</param>
     /// <param name="cancellationToken">Cancellation.</param>
     /// <returns>One entry per invoice the platform answered for.</returns>
@@ -505,7 +575,7 @@ public sealed class EFacturaClient : IAsyncDisposable
 
     private static List<EFacturaInvoiceXml> WithXml(XmlInvoice[]? results) =>
         (results ?? [])
-            .Select(i => new EFacturaInvoiceXml(new EFacturaInvoiceId(i.Seria, i.Number), i.Status == 2, (EFacturaInvoiceStatus)i.InvoiceStatus, i.Message, i.Xml))
+            .Select(i => new EFacturaInvoiceXml(new EFacturaInvoiceId(i.Seria, i.Number), i.Status == 2, (EFacturaInvoiceStatus)i.InvoiceStatus, i.Message, i.Xml, PlatformId(i.Id)))
             .ToList();
 
     private static List<EFacturaInvoiceResult> Decided(InvoiceResult[]? results) =>
@@ -531,8 +601,12 @@ public sealed class EFacturaClient : IAsyncDisposable
 
     private static List<EFacturaInvoice> Listed(Generated.Invoice[]? results) =>
         (results ?? [])
-            .Select(i => new EFacturaInvoice(new EFacturaInvoiceId(i.Seria, i.Number), (EFacturaInvoiceStatus)i.InvoiceStatus, i.Message, i.TimeStamp))
+            .Select(i => new EFacturaInvoice(new EFacturaInvoiceId(i.Seria, i.Number), (EFacturaInvoiceStatus)i.InvoiceStatus, i.Message, i.TimeStamp, PlatformId(i.Id)))
             .ToList();
+
+    // The wire's Id is a string: nil on what has none, and a GUID wherever one was seen.
+    private static Guid? PlatformId(string? id) =>
+        Guid.TryParse(id, out var parsed) && parsed != Guid.Empty ? parsed : null;
 
     // The wire wants a start whenever a range is given; an end alone means nothing to it.
     private static DateSearch? Range(DateTime? from, DateTime? to) =>

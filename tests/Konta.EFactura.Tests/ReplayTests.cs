@@ -6,9 +6,10 @@ using System.Text.RegularExpressions;
 namespace Konta.EFactura.Tests;
 
 /// <summary>
-/// Answers recorded in the shape the test service sent on 2026-10-08, read back through the real
-/// binding with <see cref="EFacturaClientOptions.Transport"/> in place of the network. The data in
-/// <c>fixtures/replay/</c> is made up; the structure is SFS's, blank first bank account included.
+/// Answers the test service sent, read back through the real binding with
+/// <see cref="EFacturaClientOptions.Transport"/> in place of the network. In <c>fixtures/replay/</c>
+/// (see <c>fixtures/README.md</c>): answers in the shape of 2026-10-08 with made-up data, blank first
+/// bank account included, and answers recorded on 2026-10-22 and anonymised.
 /// </summary>
 public sealed class ReplayTests
 {
@@ -66,6 +67,95 @@ public sealed class ReplayTests
     }
 
     [Fact]
+    public async Task Posting_answers_the_platforms_id_of_the_draft()
+    {
+        var replay = new Replay();
+        await using var client = Client(replay);
+
+        var posted = await client.PostInvoicesAsync([PostedDraft()]);
+
+        Assert.True(posted.AllPosted);
+        Assert.Equal([Id(3)], posted.DraftIds);
+    }
+
+    [Fact]
+    public async Task A_search_lists_drafts_with_the_platforms_id_and_signing_lists_them_without()
+    {
+        var replay = new Replay { Answers = { ["SearchInvoices"] = "SearchInvoices-drafts", ["GetInvoicesForSigning"] = "GetInvoicesForSigning-drafts" } };
+        await using var client = Client(replay);
+
+        var searched = await client.SearchInvoicesAsync(EFacturaActorRole.Supplier, new EFacturaSearch());
+        var toSign = await client.GetInvoicesForSigningAsync(EFacturaActorRole.Supplier);
+
+        Assert.Equal(Enumerable.Range(11, 9).Select(n => (Guid?)Id(n)), searched.Select(d => d.PlatformId));
+        Assert.All(searched, d => Assert.Equal((EFacturaInvoiceStatus.Draft, "", ""), (d.Status, d.Id.Seria, d.Id.Number)));
+        Assert.Equal(9, toSign.Count);
+        Assert.All(toSign, d => Assert.Null(d.PlatformId));
+        Assert.Contains(toSign, d => d.CorrelationId == "konta-registered-15");
+    }
+
+    [Fact]
+    public async Task A_draft_is_asked_for_by_the_platforms_id_alone()
+    {
+        var replay = new Replay { Answers = { ["GetInvoicesBySeriaNumber"] = "GetInvoicesBySeriaNumber-draft" } };
+        await using var client = Client(replay);
+
+        var draft = Assert.Single(await client.GetDraftsAsync([Id(3)]));
+
+        Assert.True(draft.Found);
+        Assert.Equal((EFacturaInvoiceStatus.Draft, (Guid?)Id(3), "konta-live-20261022045709"), (draft.Status, draft.PlatformId, draft.CorrelationId));
+        Assert.Equal(1, draft.ReadDocument()!.CreationMotive);
+        var body = Assert.Single(replay.Bodies);
+        Assert.Matches($@"<(\w+:)?Id>{Id(3)}</(\w+:)?Id>", body);
+        Assert.Matches(@"<(\w+:)?Seria\s*/>|<(\w+:)?Seria></(\w+:)?Seria>", body);
+    }
+
+    [Fact]
+    public async Task A_deleted_draft_asked_for_by_its_id_is_answered_with_a_status_of_its_own()
+    {
+        var replay = new Replay { Answers = { ["GetInvoicesBySeriaNumber"] = "GetInvoicesBySeriaNumber-deleted" } };
+        await using var client = Client(replay);
+
+        var gone = Assert.Single(await client.GetDraftsAsync([Id(3)]));
+
+        Assert.Equal((EFacturaInvoiceStatus.DeletedDraft, null as Guid?, "konta-live-20261022045709"), (gone.Status, gone.PlatformId, gone.CorrelationId));
+    }
+
+    [Fact]
+    public async Task Deleting_a_draft_sends_its_id_and_reports_what_was_answered()
+    {
+        var replay = new Replay();
+        await using var client = Client(replay);
+
+        var deletion = await client.DeleteDraftAsync(Id(3));
+
+        Assert.Equal(new EFacturaDraftDeletion(Id(3), true, "Factura Draft a fost ștearsă cu succes."), deletion);
+        Assert.Equal("http://tempuri.org/IService/DeleteDraftInvoice", Assert.Single(replay.Actions));
+        Assert.Matches($@"<(\w+:)?Id>{Id(3)}</(\w+:)?Id>", Assert.Single(replay.Bodies));
+
+        await Assert.ThrowsAsync<ArgumentException>(() => client.DeleteDraftAsync(Guid.Empty));
+        await Assert.ThrowsAsync<ArgumentException>(() => client.GetDraftsAsync([]));
+        Assert.Single(replay.Actions);
+    }
+
+    [Fact]
+    public async Task The_invoice_of_2017_reads_through_the_client_in_the_older_format()
+    {
+        var replay = new Replay { Answers = { ["GetInvoicesBySeriaNumber"] = "GetInvoicesBySeriaNumber-older" } };
+        await using var client = Client(replay);
+        EFacturaInvoiceId number = new("EXMP", "000000129");
+
+        var found = Assert.Single(await client.GetInvoicesAsync([number]));
+        var status = Assert.Single(await client.CheckInvoicesStatusAsync([number]));
+        var document = found.ReadDocument()!;
+
+        Assert.Equal((true, EFacturaInvoiceStatus.SignedByBuyer, null as Guid?), (found.Found, found.Status, found.PlatformId));
+        Assert.True(document.OlderFormat);
+        Assert.Equal(1519m, document.TotalWithVat);
+        Assert.Equal((number, EFacturaInvoiceStatus.SignedByBuyer), (status.Id, status.Status));
+    }
+
+    [Fact]
     public async Task The_password_travels_in_the_security_header_and_never_reaches_the_recorder()
     {
         var replay = new Replay();
@@ -109,6 +199,21 @@ public sealed class ReplayTests
         Assert.True(TimeProvider.System.GetElapsedTime(started) < TimeSpan.FromSeconds(5));
     }
 
+    // The ids of the recordings of 2026-10-22, numbered in order of first appearance (fixtures/README.md).
+    private static Guid Id(int number) => Guid.Parse(string.Create(CultureInfo.InvariantCulture, $"00000000-0000-0000-0000-{number:000000000000}"));
+
+    private static Invoice PostedDraft() => new()
+    {
+        SupplierIdno = "1099900000028",
+        BuyerIdno = "1099900000017",
+        SupplierBankAccount = "MD51AG860162762387162111",
+        BuyerBankAccount = "MD21EX082453433968977068",
+        DeliveryDate = new DateTimeOffset(2026, 10, 22, 4, 57, 9, 523, TimeSpan.Zero),
+        CreationMotive = CreationMotive.SupplyDocumentation,
+        CorrelationId = "konta-live-20261022045709",
+        Lines = [new InvoiceLine { Code = "1", Name = "Servicii de testare", UnitOfMeasure = "buc", Quantity = 1m, UnitPriceWithoutVat = 19.52m, VatPercent = 0m }],
+    };
+
     private static EFacturaClient Client(Replay replay) =>
         new(EFacturaEndpoints.Test, "api-user", "not-a-real-password", new EFacturaClientOptions { Transport = _ => replay, Timeout = TimeSpan.FromSeconds(10) });
 
@@ -123,8 +228,9 @@ public sealed class ReplayTests
     }
 
     /// <summary>
-    /// Answers each call with <c>fixtures/replay/{operation}-response.xml</c>, its security timestamp
-    /// renewed, as WCF refuses an answer whose timestamp has expired.
+    /// Answers each call with <c>fixtures/replay/{operation}-response.xml</c>, or the answer named in
+    /// <see cref="Answers"/> for it, its security timestamp renewed, as WCF refuses an answer whose
+    /// timestamp has expired.
     /// </summary>
     private sealed class Replay : HttpMessageHandler
     {
@@ -133,6 +239,9 @@ public sealed class ReplayTests
         public List<string> Bodies { get; } = [];
 
         public bool Html { get; init; }
+
+        /// <summary>Which recorded answer an operation gets, where it is not <c>{operation}-response.xml</c>.</summary>
+        public Dictionary<string, string> Answers { get; } = [];
 
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
@@ -149,7 +258,8 @@ public sealed class ReplayTests
             }
 
             var operation = action[(action.LastIndexOf('/') + 1)..];
-            var recorded = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "fixtures", "replay", $"{operation}-response.xml"), cancellationToken);
+            var answer = Answers.GetValueOrDefault(operation, operation);
+            var recorded = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "fixtures", "replay", $"{answer}-response.xml"), cancellationToken);
 
             return new HttpResponseMessage(HttpStatusCode.OK)
             {

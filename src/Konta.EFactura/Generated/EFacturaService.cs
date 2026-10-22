@@ -28,6 +28,7 @@ namespace Konta.EFactura.Generated
     [System.Runtime.Serialization.KnownTypeAttribute(typeof(Konta.EFactura.Generated.RejectRequest))]
     [System.Runtime.Serialization.KnownTypeAttribute(typeof(Konta.EFactura.Generated.CanceledRequest))]
     [System.Runtime.Serialization.KnownTypeAttribute(typeof(Konta.EFactura.Generated.SearchRequest))]
+    [System.Runtime.Serialization.KnownTypeAttribute(typeof(Konta.EFactura.Generated.DeleteInvoiceRequest))]
     [System.Runtime.Serialization.KnownTypeAttribute(typeof(Konta.EFactura.Generated.LogsRequest))]
     [System.Runtime.Serialization.KnownTypeAttribute(typeof(Konta.EFactura.Generated.TaxpayersRequest))]
     internal partial class BaseRequest : object
@@ -273,24 +274,9 @@ namespace Konta.EFactura.Generated
     internal partial class PostInvocesRequest : Konta.EFactura.Generated.ActorBaseRequest
     {
         
-        private Konta.EFactura.Generated.Attachment AttachmentField;
-        
         private string InvoicesXmlField;
         
         private int InvoicesXmlStatusField;
-        
-        [System.Runtime.Serialization.DataMemberAttribute()]
-        internal Konta.EFactura.Generated.Attachment Attachment
-        {
-            get
-            {
-                return this.AttachmentField;
-            }
-            set
-            {
-                this.AttachmentField = value;
-            }
-        }
         
         [System.Runtime.Serialization.DataMemberAttribute()]
         internal string InvoicesXml
@@ -448,6 +434,28 @@ namespace Konta.EFactura.Generated
     
     [System.Diagnostics.DebuggerStepThroughAttribute()]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Tools.ServiceModel.Svcutil", "8.0.0")]
+    [System.Runtime.Serialization.DataContractAttribute(Name="DeleteInvoiceRequest", Namespace="http://schemas.datacontract.org/2004/07/AX.EFactura.Model.ApiModel")]
+    internal partial class DeleteInvoiceRequest : Konta.EFactura.Generated.BaseRequest
+    {
+        
+        private System.Guid IdField;
+        
+        [System.Runtime.Serialization.DataMemberAttribute()]
+        internal System.Guid Id
+        {
+            get
+            {
+                return this.IdField;
+            }
+            set
+            {
+                this.IdField = value;
+            }
+        }
+    }
+    
+    [System.Diagnostics.DebuggerStepThroughAttribute()]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Tools.ServiceModel.Svcutil", "8.0.0")]
     [System.Runtime.Serialization.DataContractAttribute(Name="LogsRequest", Namespace="http://schemas.datacontract.org/2004/07/AX.EFactura.Model.ApiModel")]
     internal partial class LogsRequest : Konta.EFactura.Generated.BaseRequest
     {
@@ -518,9 +526,24 @@ namespace Konta.EFactura.Generated
     internal partial class InvoiceIndentificator : object
     {
         
+        private string IdField;
+        
         private string NumberField;
         
         private string SeriaField;
+        
+        [System.Runtime.Serialization.DataMemberAttribute()]
+        internal string Id
+        {
+            get
+            {
+                return this.IdField;
+            }
+            set
+            {
+                this.IdField = value;
+            }
+        }
         
         [System.Runtime.Serialization.DataMemberAttribute()]
         internal string Number
@@ -770,43 +793,6 @@ namespace Konta.EFactura.Generated
     
     [System.Diagnostics.DebuggerStepThroughAttribute()]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Tools.ServiceModel.Svcutil", "8.0.0")]
-    [System.Runtime.Serialization.DataContractAttribute(Name="Attachment", Namespace="http://schemas.datacontract.org/2004/07/AX.EFactura.Model.ApiModel")]
-    internal partial class Attachment : object
-    {
-        
-        private string FileContentField;
-        
-        private string FileNameField;
-        
-        [System.Runtime.Serialization.DataMemberAttribute()]
-        internal string FileContent
-        {
-            get
-            {
-                return this.FileContentField;
-            }
-            set
-            {
-                this.FileContentField = value;
-            }
-        }
-        
-        [System.Runtime.Serialization.DataMemberAttribute()]
-        internal string FileName
-        {
-            get
-            {
-                return this.FileNameField;
-            }
-            set
-            {
-                this.FileNameField = value;
-            }
-        }
-    }
-    
-    [System.Diagnostics.DebuggerStepThroughAttribute()]
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Tools.ServiceModel.Svcutil", "8.0.0")]
     [System.Runtime.Serialization.DataContractAttribute(Name="DateSearch", Namespace="http://schemas.datacontract.org/2004/07/AX.EFactura.Model.ApiModel")]
     internal partial class DateSearch : object
     {
@@ -1028,6 +1014,7 @@ namespace Konta.EFactura.Generated
     [System.Runtime.Serialization.KnownTypeAttribute(typeof(Konta.EFactura.Generated.AcceptedResponse))]
     [System.Runtime.Serialization.KnownTypeAttribute(typeof(Konta.EFactura.Generated.CanceledResponse))]
     [System.Runtime.Serialization.KnownTypeAttribute(typeof(Konta.EFactura.Generated.PostInvocesResponse))]
+    [System.Runtime.Serialization.KnownTypeAttribute(typeof(Konta.EFactura.Generated.DeleteInvoiceResponse))]
     [System.Runtime.Serialization.KnownTypeAttribute(typeof(Konta.EFactura.Generated.LogsResponse))]
     [System.Runtime.Serialization.KnownTypeAttribute(typeof(Konta.EFactura.Generated.TaxpayersResponse))]
     internal partial class BaseResponse : object
@@ -1280,6 +1267,8 @@ namespace Konta.EFactura.Generated
         
         private string ErrorMessageField;
         
+        private string[] InvoiceIdsField;
+        
         private int TotalInvoicesField;
         
         private int TotalInvoicesPostedField;
@@ -1294,6 +1283,19 @@ namespace Konta.EFactura.Generated
             set
             {
                 this.ErrorMessageField = value;
+            }
+        }
+        
+        [System.Runtime.Serialization.DataMemberAttribute()]
+        internal string[] InvoiceIds
+        {
+            get
+            {
+                return this.InvoiceIdsField;
+            }
+            set
+            {
+                this.InvoiceIdsField = value;
             }
         }
         
@@ -1320,6 +1322,28 @@ namespace Konta.EFactura.Generated
             set
             {
                 this.TotalInvoicesPostedField = value;
+            }
+        }
+    }
+    
+    [System.Diagnostics.DebuggerStepThroughAttribute()]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.Tools.ServiceModel.Svcutil", "8.0.0")]
+    [System.Runtime.Serialization.DataContractAttribute(Name="DeleteInvoiceResponse", Namespace="http://schemas.datacontract.org/2004/07/AX.EFactura.Model.ApiModel")]
+    internal partial class DeleteInvoiceResponse : Konta.EFactura.Generated.BaseResponse
+    {
+        
+        private string MessageField;
+        
+        [System.Runtime.Serialization.DataMemberAttribute()]
+        internal string Message
+        {
+            get
+            {
+                return this.MessageField;
+            }
+            set
+            {
+                this.MessageField = value;
             }
         }
     }
@@ -1766,6 +1790,12 @@ namespace Konta.EFactura.Generated
         [System.ServiceModel.OperationContractAttribute(Action="http://tempuri.org/IService/SearchInvoices", ReplyAction="http://tempuri.org/IService/SearchInvoicesResponse")]
         System.Threading.Tasks.Task<Konta.EFactura.Generated.InvoicesResponse> SearchInvoicesAsync(Konta.EFactura.Generated.SearchRequest request);
         
+        [System.ServiceModel.OperationContractAttribute(Action="http://tempuri.org/IService/DeleteDraftInvoice", ReplyAction="http://tempuri.org/IService/DeleteDraftInvoiceResponse")]
+        Konta.EFactura.Generated.DeleteInvoiceResponse DeleteDraftInvoice(Konta.EFactura.Generated.DeleteInvoiceRequest request);
+        
+        [System.ServiceModel.OperationContractAttribute(Action="http://tempuri.org/IService/DeleteDraftInvoice", ReplyAction="http://tempuri.org/IService/DeleteDraftInvoiceResponse")]
+        System.Threading.Tasks.Task<Konta.EFactura.Generated.DeleteInvoiceResponse> DeleteDraftInvoiceAsync(Konta.EFactura.Generated.DeleteInvoiceRequest request);
+        
         [System.ServiceModel.OperationContractAttribute(Action="http://tempuri.org/IService/GetLogs", ReplyAction="http://tempuri.org/IService/GetLogsResponse")]
         Konta.EFactura.Generated.LogsResponse GetLogs(Konta.EFactura.Generated.LogsRequest request);
         
@@ -1999,6 +2029,16 @@ namespace Konta.EFactura.Generated
             return base.Channel.SearchInvoicesAsync(request);
         }
         
+        public Konta.EFactura.Generated.DeleteInvoiceResponse DeleteDraftInvoice(Konta.EFactura.Generated.DeleteInvoiceRequest request)
+        {
+            return base.Channel.DeleteDraftInvoice(request);
+        }
+        
+        public System.Threading.Tasks.Task<Konta.EFactura.Generated.DeleteInvoiceResponse> DeleteDraftInvoiceAsync(Konta.EFactura.Generated.DeleteInvoiceRequest request)
+        {
+            return base.Channel.DeleteDraftInvoiceAsync(request);
+        }
+        
         public Konta.EFactura.Generated.LogsResponse GetLogs(Konta.EFactura.Generated.LogsRequest request)
         {
             return base.Channel.GetLogs(request);
@@ -2050,7 +2090,7 @@ namespace Konta.EFactura.Generated
         {
             if ((endpointConfiguration == EndpointConfiguration.BasicHttpBinding_IService))
             {
-                return new System.ServiceModel.EndpointAddress("https://efactura-api.sfs.md/Service.svc");
+                return new System.ServiceModel.EndpointAddress("https://apiefactura-pre.sfs.md/Service.svc");
             }
             throw new System.InvalidOperationException(string.Format("Could not find endpoint with name \'{0}\'.", endpointConfiguration));
         }

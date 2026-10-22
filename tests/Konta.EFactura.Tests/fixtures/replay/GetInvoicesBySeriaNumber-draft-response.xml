@@ -1,0 +1,33 @@
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" xmlns:u="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd">
+  <s:Header>
+    <ActivityId CorrelationId="00000000-0000-0000-0000-000000000004" xmlns="http://schemas.microsoft.com/2004/09/ServiceModel/Diagnostics">00000000-0000-0000-0000-000000000000</ActivityId>
+    <o:Security s:mustUnderstand="1" xmlns:o="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd">
+      <u:Timestamp u:Id="_0">
+        <u:Created>2026-10-22T07:00:00.000Z</u:Created>
+        <u:Expires>2026-10-22T07:05:00.000Z</u:Expires>
+      </u:Timestamp>
+    </o:Security>
+  </s:Header>
+  <s:Body>
+    <GetInvoicesBySeriaNumberResponse xmlns="http://tempuri.org/">
+      <GetInvoicesBySeriaNumberResult xmlns:a="http://schemas.datacontract.org/2004/07/AX.EFactura.Model.ApiModel" xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+        <a:RequestId>00000000-0000-0000-0000-000000000005</a:RequestId>
+        <a:Status>2</a:Status>
+        <a:TimeStamp>2026-10-22T10:00:00+03:00</a:TimeStamp>
+        <a:Message i:nil="true" />
+        <a:Results>
+          <a:XmlInvoice>
+            <a:Id>00000000-0000-0000-0000-000000000003</a:Id>
+            <a:Number i:nil="true" />
+            <a:Seria i:nil="true" />
+            <a:Message i:nil="true" />
+            <a:Status>2</a:Status>
+            <a:TimeStamp>2026-10-22T10:00:00+03:00</a:TimeStamp>
+            <a:InvoiceStatus>0</a:InvoiceStatus>
+            <a:Xml>&lt;Document&gt;&lt;SupplierInfo&gt;&lt;DeliveryDate&gt;2026-10-22T04:57:09.523Z&lt;/DeliveryDate&gt;&lt;Supplier IDNO="1099900000028"&gt;&lt;BankAccount Account="MD51AG860162762387162111" /&gt;&lt;/Supplier&gt;&lt;Buyer IDNO="1099900000017"&gt;&lt;BankAccount Account="MD21EX082453433968977068" /&gt;&lt;/Buyer&gt;&lt;Merchandises&gt;&lt;Row Code="1" Name="Servicii de testare" UnitOfMeasure="buc" Quantity="1.00" UnitPriceWithoutTVA="19.52" TotalPriceWithoutTVA="19.52" TVA="0" TotalTVA="0.00" TotalPrice="19.52" /&gt;&lt;/Merchandises&gt;&lt;CreationMotiv&gt;1&lt;/CreationMotiv&gt;&lt;/SupplierInfo&gt;&lt;AdditionalInformation&gt;&lt;id&gt;konta-live-20261022045709&lt;/id&gt;&lt;/AdditionalInformation&gt;&lt;/Document&gt;</a:Xml>
+          </a:XmlInvoice>
+        </a:Results>
+      </GetInvoicesBySeriaNumberResult>
+    </GetInvoicesBySeriaNumberResponse>
+  </s:Body>
+</s:Envelope>

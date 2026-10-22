@@ -1,11 +1,13 @@
+using System.Reflection;
+using System.Runtime.Serialization;
 using System.ServiceModel;
-using System.Xml.Linq;
 
 namespace Konta.EFactura.Tests;
 
 /// <summary>
 /// What can be checked without reaching SFS: the binding the guide describes, the published
-/// addresses, and that the generated contract is the WSDL's, operation for operation.
+/// addresses, and that the generated contract is the test service's WSDL, operation for operation
+/// and member for member, and how production's differs.
 /// </summary>
 public sealed class ClientTests
 {
@@ -40,13 +42,7 @@ public sealed class ClientTests
     [Fact]
     public void The_generated_contract_has_every_operation_of_the_wsdl()
     {
-        XNamespace wsdl = "http://schemas.xmlsoap.org/wsdl/";
-        var published = XDocument.Load(Path.Combine(AppContext.BaseDirectory, "sfs", "Service.wsdl"))
-            .Descendants(wsdl + "portType")
-            .Elements(wsdl + "operation")
-            .Select(o => (string)o.Attribute("name")!)
-            .Order(StringComparer.Ordinal)
-            .ToList();
+        var published = Wsdl.Operations(Wsdl.Committed("Service.wsdl"));
 
         var generated = typeof(Generated.IService).GetMethods()
             .Where(m => m.GetCustomAttributes(typeof(OperationContractAttribute), false).Length > 0)
@@ -55,8 +51,54 @@ public sealed class ClientTests
             .Order(StringComparer.Ordinal)
             .ToList();
 
-        Assert.Equal(19, published.Count);
+        Assert.Equal(20, published.Count);
         Assert.Equal(published, generated);
+    }
+
+    [Fact]
+    public void The_generated_contract_has_every_member_of_the_wsdl()
+    {
+        // The test service's WSDL of 2026-10-22 added members to existing types (InvoiceIds, Id), which
+        // a comparison of operations alone would not see.
+        var published = Wsdl.Members(Wsdl.Committed("Service.wsdl")).Select(m => m[..m.IndexOf(':', StringComparison.Ordinal)]).ToList();
+
+        var generated = typeof(Generated.IService).Assembly.GetTypes()
+            .Select(t => (Type: t, Contract: t.GetCustomAttributes(typeof(DataContractAttribute), false).OfType<DataContractAttribute>().SingleOrDefault()))
+            .Where(t => t.Contract?.Namespace == Wsdl.Model)
+            .SelectMany(t => t.Type.GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly)
+                .Where(p => p.GetCustomAttributes(typeof(DataMemberAttribute), false).Length > 0)
+                .Select(p => $"{t.Contract!.Name}.{p.Name}"))
+            .Order(StringComparer.Ordinal)
+            .ToList();
+
+        Assert.Equal(published, generated);
+    }
+
+    [Fact]
+    public void Production_lacks_only_what_the_test_service_added()
+    {
+        // The contract is generated from the test service's WSDL, which was ahead of production's on
+        // 2026-10-22. When production catches up, this fails: replace Service-production.wsdl and
+        // drop what it then has from the lists below.
+        var test = Wsdl.Shape(Wsdl.Committed("Service.wsdl"));
+        var production = Wsdl.Shape(Wsdl.Committed("Service-production.wsdl"));
+
+        Assert.Equal(
+            [
+                "member DeleteInvoiceRequest.Id: guid",
+                "member DeleteInvoiceResponse.Message: string",
+                "member InvoiceIndentificator.Id: string",
+                "member PostInvocesResponse.InvoiceIds: ArrayOfstring",
+                "operation DeleteDraftInvoice",
+            ],
+            test.Except(production).Order(StringComparer.Ordinal));
+        Assert.Equal(
+            [
+                "member Attachment.FileContent: string",
+                "member Attachment.FileName: string",
+                "member PostInvocesRequest.Attachment: Attachment",
+            ],
+            production.Except(test).Order(StringComparer.Ordinal));
     }
 
     [Fact]
@@ -110,9 +152,9 @@ public sealed class ClientTests
     [Fact]
     public void A_batch_is_posted_only_when_every_invoice_is()
     {
-        Assert.True(new EFacturaPostResult("r", 2, 2, [], null).AllPosted);
-        Assert.False(new EFacturaPostResult("r", 2, 1, [new EFacturaRefusal(1, "x")], "x").AllPosted);
-        Assert.False(new EFacturaPostResult("r", 0, 0, [], null).AllPosted);
+        Assert.True(new EFacturaPostResult("r", 2, 2, [], null, []).AllPosted);
+        Assert.False(new EFacturaPostResult("r", 2, 1, [new EFacturaRefusal(1, "x")], "x", []).AllPosted);
+        Assert.False(new EFacturaPostResult("r", 0, 0, [], null, []).AllPosted);
     }
 
     [Fact]

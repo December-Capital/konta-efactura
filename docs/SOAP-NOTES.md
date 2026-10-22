@@ -26,8 +26,23 @@ This is what `EFacturaClient.Binding` does. Construct an `EFacturaClient` with
 
 The contract is generated from the committed WSDL and committed itself, so a change in the
 service shows up as a reviewable diff. It is generated `--internal`: the package's public surface is
-`EFacturaClient`, never SFS's wire types. To regenerate after replacing `spec/sfs/Service.wsdl`, from
-the repository root:
+`EFacturaClient`, never SFS's wire types.
+
+Two WSDLs are committed. `spec/sfs/Service.wsdl` is the **test service's**, and the contract is
+generated from it: on 2026-10-22 it was ahead of production's, with `DeleteDraftInvoice`, the
+drafts' ids and the `Id` beside series and number. `spec/sfs/Service-production.wsdl` is
+production's, kept to compare; `ClientTests` names every difference between the two and fails when
+either changes. The test service answers only its registered address, so fetch its WSDL there;
+production answers that address with 403, so fetch production's anywhere else:
+
+```bash
+ssh my-vps 'curl -sS "https://apiefactura-pre.sfs.md/Service.svc?singleWsdl"' > spec/sfs/Service.wsdl
+curl -sS "https://efactura-api.sfs.md/Service.svc?singleWsdl" > spec/sfs/Service-production.wsdl
+```
+
+The live tests check both against the service (`The_test_service_publishes_the_committed_wsdl`, and
+`Production_publishes_the_committed_wsdl` where `KONTA_EFACTURA_PRODUCTION_WSDL` is set). To
+regenerate after replacing `spec/sfs/Service.wsdl`, from the repository root:
 
 ```bash
 dotnet tool install --global dotnet-svcutil   # 8.0.0 was used
@@ -41,8 +56,9 @@ git checkout src/Konta.EFactura/Konta.EFactura.csproj   # svcutil rewrites it wi
 `--outputDir` is relative to the project, not to the current directory. svcutil adds
 `System.ServiceModel.*` at `8.*` and `NetTcp`, which we do not use; the project pins
 `System.ServiceModel.Http` and `.Primitives` at 8.1.2, and `System.Security.Cryptography.Xml` at
-9.0.20 because the 8.0.2 they bring has high-severity advisories. A test fails if the generated
-contract and the WSDL disagree on the operations.
+9.0.21 because the 8.0.2 they bring has high-severity advisories. svcutil also records the
+references it resolved in `dotnet-svcutil.params.json`; keep that change. A test fails if the
+generated contract and the WSDL disagree on the operations or on any member of any data contract.
 
 ## To confirm against a test account
 
@@ -167,7 +183,7 @@ log, and one draft posted and read back, through Konta's gateway. New since the 
       `Id` string in `InvoiceIndentificator`, the series-and-number type of every by-number call;
       and no `Attachment` in `PostInvoices`'s request. The contract test compares the generated
       contract with the committed WSDL, so it cannot see this: fetch the WSDL again before
-      regenerating. Not regenerated yet, so `EFacturaClient` reads none of the new fields.
+      regenerating. **Regenerated on 2026-10-22** from the test service's WSDL (see Configuration).
 - [x] **A draft now has SFS's own id.** `PostInvoices` answers `InvoiceIds` with one GUID per
       draft registered (seen since 2026-10-15; the answers of 2026-10-08 had none), and
       `SearchInvoices` lists the draft with the same GUID in `Id`. `GetInvoicesForSigning` still
@@ -183,8 +199,8 @@ log, and one draft posted and read back, through Konta's gateway. New since the 
       `TotalTVA` and `IsFarma` under `SupplierInfo`; `RiskAnalysisValid`, `IsRegistered` and
       `IsValid` on each party; the buyer's `CodTVA` ten spaces and its `Account` empty with
       `IsManual` true; two XAdES signatures under `Signatures/SignatureContent/SignedDoc`.
-      `InvoiceDocumentReader` refuses it ("no Row/@UnitPriceWithoutTVA"), so a reader for
-      received invoices has to know the older rows too, and read blanks as absent.
+      `InvoiceDocumentReader` refused it ("no Row/@UnitPriceWithoutTVA"). **It reads it since
+      2026-10-22** (`EFacturaDocument.OlderFormat`), blanks as absent, with no motive and no rate.
 - [x] **`GetInvoicesContentForPrint` fails inside the platform for a signed invoice**: HTTP 500
       with SFS's HTML error page ("A apărut o eroare"), whether asked as buyer or as supplier,
       portrait or landscape. For a number no invoice holds it answers `Status` 0 and no content,
@@ -200,6 +216,40 @@ log, and one draft posted and read back, through Konta's gateway. New since the 
       service.
 - [x] **`PostInvoices` does not check an IBAN's check digits**: drafts whose buyer account fails
       the mod-97 check are registered and listed like any other. Check them before posting.
+
+## Seen on 2026-10-22
+
+The contract regenerated from the test service's WSDL, and every new piece called there
+(`LiveTests`, recorded and anonymised into `fixtures/replay/`):
+
+- [x] **The WSDLs.** The test service's was unchanged since 2026-10-18; production's was still the one
+      of SFS's package of 2026-10-06, byte for byte, so production has no `DeleteDraftInvoice` yet.
+      **Production answers `403` to the VPS** (the test service's registered address), its WSDL
+      included, while it serves it to other addresses.
+- [x] **`PostInvoices` answers `InvoiceIds`**, one GUID for the one draft posted
+      (`EFacturaPostResult.DraftIds`). Which id is whose in a batch of several is not known yet.
+- [x] **`GetInvoicesBySeriaNumber` finds a draft by its `Id` alone**, series and number empty: it
+      answered with the draft's XML and its `Id`, one second after posting (`GetDraftsAsync`).
+      The same draft was listed by `SearchInvoices` 14 seconds after posting, much sooner than
+      the 11 to 20 minutes of October 2026.
+- [x] **`DeleteDraftInvoice` deletes**: a draft listed by a search was gone from the next search
+      and from `GetInvoicesForSigning` at once. **Its answer is the same for any id**: `Status` 2,
+      a nil `RequestId`, a `TimeStamp` of `0001-01-01` and "Factura Draft a fost ștearsă cu
+      succes.", for a draft it deleted, for the same id again, and for a random GUID.
+      `EFacturaDraftDeletion.Accepted` says only that.
+- [x] **A deleted draft asked for by its id answers `InvoiceStatus` 99**, with `Status` 2 for the
+      invoice, its XML still, and a nil `Id`. 99 is in neither guide
+      (`EFacturaInvoiceStatus.DeletedDraft`).
+- [x] **`CheckInvoicesStatus` asked by a draft's `Id` alone answers `InvoiceStatus` 11**, with an
+      empty series and number and a nil `Id`; 11 is in neither guide. Not used: the status of a
+      draft comes from a search or `GetDraftsAsync`. By series and number it answered 8 for the
+      invoice of 2017, as on 2026-10-18.
+- [x] **`GetInvoicesForSigning` still gives each draft a nil `Id`**, while `SearchInvoices` lists
+      the same drafts with theirs.
+- [x] Three drafts our earlier runs had left were deleted on the way, one of them
+      `konta-registered-15`, the draft with the registered accounts for the signing attempt; it
+      was posted again with the same content (a new id). The live tests now delete only the
+      draft they post.
 
 ## Resilience
 

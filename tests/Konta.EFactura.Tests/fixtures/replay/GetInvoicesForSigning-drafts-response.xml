@@ -1,0 +1,113 @@
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" xmlns:u="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd">
+  <s:Header>
+    <ActivityId CorrelationId="00000000-0000-0000-0000-000000000020" xmlns="http://schemas.microsoft.com/2004/09/ServiceModel/Diagnostics">00000000-0000-0000-0000-000000000000</ActivityId>
+    <o:Security s:mustUnderstand="1" xmlns:o="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd">
+      <u:Timestamp u:Id="_0">
+        <u:Created>2026-10-22T07:00:00.000Z</u:Created>
+        <u:Expires>2026-10-22T07:05:00.000Z</u:Expires>
+      </u:Timestamp>
+    </o:Security>
+  </s:Header>
+  <s:Body>
+    <GetInvoicesForSigningResponse xmlns="http://tempuri.org/">
+      <GetInvoicesForSigningResult xmlns:a="http://schemas.datacontract.org/2004/07/AX.EFactura.Model.ApiModel" xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+        <a:RequestId>00000000-0000-0000-0000-000000000021</a:RequestId>
+        <a:Status>2</a:Status>
+        <a:TimeStamp>2026-10-22T10:00:00+03:00</a:TimeStamp>
+        <a:Message i:nil="true" />
+        <a:Results>
+          <a:XmlInvoice>
+            <a:Id i:nil="true" />
+            <a:Number />
+            <a:Seria />
+            <a:Message i:nil="true" />
+            <a:Status>2</a:Status>
+            <a:TimeStamp>2026-10-22T10:00:00+03:00</a:TimeStamp>
+            <a:InvoiceStatus>0</a:InvoiceStatus>
+            <a:Xml>&lt;Document&gt;&lt;SupplierInfo&gt;&lt;DeliveryDate&gt;2026-10-15T01:34:24.111Z&lt;/DeliveryDate&gt;&lt;Supplier IDNO="1099900000028"&gt;&lt;BankAccount Account="MD51AG860162762387162111" /&gt;&lt;/Supplier&gt;&lt;Buyer IDNO="1099900000017"&gt;&lt;BankAccount Account="MD21EX082453433968977068" /&gt;&lt;/Buyer&gt;&lt;Merchandises&gt;&lt;Row Code="1" Name="Servicii de testare" UnitOfMeasure="buc" Quantity="1.00" UnitPriceWithoutTVA="10.00" TotalPriceWithoutTVA="10.00" TVA="0" TotalTVA="0.00" TotalPrice="10.00" /&gt;&lt;/Merchandises&gt;&lt;CreationMotiv&gt;1&lt;/CreationMotiv&gt;&lt;/SupplierInfo&gt;&lt;AdditionalInformation&gt;&lt;id&gt;konta-live-20261015013424&lt;/id&gt;&lt;/AdditionalInformation&gt;&lt;/Document&gt;</a:Xml>
+          </a:XmlInvoice>
+          <a:XmlInvoice>
+            <a:Id i:nil="true" />
+            <a:Number />
+            <a:Seria />
+            <a:Message i:nil="true" />
+            <a:Status>2</a:Status>
+            <a:TimeStamp>2026-10-22T10:00:00+03:00</a:TimeStamp>
+            <a:InvoiceStatus>0</a:InvoiceStatus>
+            <a:Xml>&lt;Document&gt;&lt;SupplierInfo&gt;&lt;DeliveryDate&gt;2026-10-15T01:45:58.899Z&lt;/DeliveryDate&gt;&lt;Supplier IDNO="1099900000028"&gt;&lt;BankAccount Account="MD51AG860162762387162111" /&gt;&lt;/Supplier&gt;&lt;Buyer IDNO="1099900000017"&gt;&lt;BankAccount Account="MD21EX082453433968977068" /&gt;&lt;/Buyer&gt;&lt;Merchandises&gt;&lt;Row Code="1" Name="Servicii de testare" UnitOfMeasure="buc" Quantity="1.00" UnitPriceWithoutTVA="10.00" TotalPriceWithoutTVA="10.00" TVA="0" TotalTVA="0.00" TotalPrice="10.00" /&gt;&lt;/Merchandises&gt;&lt;CreationMotiv&gt;1&lt;/CreationMotiv&gt;&lt;/SupplierInfo&gt;&lt;AdditionalInformation&gt;&lt;id&gt;konta-live-20261015014558&lt;/id&gt;&lt;/AdditionalInformation&gt;&lt;/Document&gt;</a:Xml>
+          </a:XmlInvoice>
+          <a:XmlInvoice>
+            <a:Id i:nil="true" />
+            <a:Number />
+            <a:Seria />
+            <a:Message i:nil="true" />
+            <a:Status>2</a:Status>
+            <a:TimeStamp>2026-10-22T10:00:00+03:00</a:TimeStamp>
+            <a:InvoiceStatus>0</a:InvoiceStatus>
+            <a:Xml>&lt;Document&gt;&lt;SupplierInfo&gt;&lt;DeliveryDate&gt;2026-10-08T14:35:12.817Z&lt;/DeliveryDate&gt;&lt;Supplier IDNO="1099900000028"&gt;&lt;BankAccount Account="MD08EN088898186506590277" /&gt;&lt;/Supplier&gt;&lt;Buyer IDNO="1099900000017"&gt;&lt;BankAccount Account="12312312412" /&gt;&lt;/Buyer&gt;&lt;Merchandises&gt;&lt;Row Code="1" Name="Servicii de testare 15 lei, conturi reale" UnitOfMeasure="buc" Quantity="1.00" UnitPriceWithoutTVA="15.00" TotalPriceWithoutTVA="15.00" TVA="0" TotalTVA="0.00" TotalPrice="15.00" /&gt;&lt;/Merchandises&gt;&lt;CreationMotiv&gt;1&lt;/CreationMotiv&gt;&lt;/SupplierInfo&gt;&lt;AdditionalInformation&gt;&lt;id&gt;konta-registered-15&lt;/id&gt;&lt;/AdditionalInformation&gt;&lt;/Document&gt;</a:Xml>
+          </a:XmlInvoice>
+          <a:XmlInvoice>
+            <a:Id i:nil="true" />
+            <a:Number />
+            <a:Seria />
+            <a:Message i:nil="true" />
+            <a:Status>2</a:Status>
+            <a:TimeStamp>2026-10-22T10:00:00+03:00</a:TimeStamp>
+            <a:InvoiceStatus>0</a:InvoiceStatus>
+            <a:Xml>&lt;Document&gt;&lt;SupplierInfo&gt;&lt;DeliveryDate&gt;2026-10-22T04:54:22.572Z&lt;/DeliveryDate&gt;&lt;Supplier IDNO="1099900000028"&gt;&lt;BankAccount Account="MD51AG860162762387162111" /&gt;&lt;/Supplier&gt;&lt;Buyer IDNO="1099900000017"&gt;&lt;BankAccount Account="MD21EX082453433968977068" /&gt;&lt;/Buyer&gt;&lt;Merchandises&gt;&lt;Row Code="1" Name="Servicii de testare" UnitOfMeasure="buc" Quantity="1.00" UnitPriceWithoutTVA="32.57" TotalPriceWithoutTVA="32.57" TVA="0" TotalTVA="0.00" TotalPrice="32.57" /&gt;&lt;/Merchandises&gt;&lt;CreationMotiv&gt;1&lt;/CreationMotiv&gt;&lt;/SupplierInfo&gt;&lt;AdditionalInformation&gt;&lt;id&gt;konta-live-20261022045422&lt;/id&gt;&lt;/AdditionalInformation&gt;&lt;/Document&gt;</a:Xml>
+          </a:XmlInvoice>
+          <a:XmlInvoice>
+            <a:Id i:nil="true" />
+            <a:Number />
+            <a:Seria />
+            <a:Message i:nil="true" />
+            <a:Status>2</a:Status>
+            <a:TimeStamp>2026-10-22T10:00:00+03:00</a:TimeStamp>
+            <a:InvoiceStatus>0</a:InvoiceStatus>
+            <a:Xml>&lt;Document&gt;&lt;SupplierInfo&gt;&lt;DeliveryDate&gt;2026-10-08T14:02:16.390Z&lt;/DeliveryDate&gt;&lt;Supplier IDNO="1099900000028"&gt;&lt;BankAccount Account="MD51AG860162762387162111" /&gt;&lt;/Supplier&gt;&lt;Buyer IDNO="1099900000017"&gt;&lt;BankAccount Account="MD21EX082453433968977068" /&gt;&lt;/Buyer&gt;&lt;Merchandises&gt;&lt;Row Code="1" Name="Servicii de testare" UnitOfMeasure="buc" Quantity="1.00" UnitPriceWithoutTVA="10.00" TotalPriceWithoutTVA="10.00" TVA="0" TotalTVA="0.00" TotalPrice="10.00" /&gt;&lt;/Merchandises&gt;&lt;CreationMotiv&gt;1&lt;/CreationMotiv&gt;&lt;/SupplierInfo&gt;&lt;AdditionalInformation&gt;&lt;id&gt;konta-live-20261008140216&lt;/id&gt;&lt;/AdditionalInformation&gt;&lt;/Document&gt;</a:Xml>
+          </a:XmlInvoice>
+          <a:XmlInvoice>
+            <a:Id i:nil="true" />
+            <a:Number />
+            <a:Seria />
+            <a:Message i:nil="true" />
+            <a:Status>2</a:Status>
+            <a:TimeStamp>2026-10-22T10:00:00+03:00</a:TimeStamp>
+            <a:InvoiceStatus>0</a:InvoiceStatus>
+            <a:Xml>&lt;Document&gt;&lt;SupplierInfo&gt;&lt;DeliveryDate&gt;2026-10-17T19:39:43.928Z&lt;/DeliveryDate&gt;&lt;Supplier IDNO="1099900000028"&gt;&lt;BankAccount Account="MD51AG860162762387162111" /&gt;&lt;/Supplier&gt;&lt;Buyer IDNO="1099900000017"&gt;&lt;BankAccount Account="MD21EX082453433968977068" /&gt;&lt;/Buyer&gt;&lt;Merchandises&gt;&lt;Row Code="1" Name="Servicii de testare" UnitOfMeasure="buc" Quantity="1.00" UnitPriceWithoutTVA="10.00" TotalPriceWithoutTVA="10.00" TVA="0" TotalTVA="0.00" TotalPrice="10.00" /&gt;&lt;/Merchandises&gt;&lt;CreationMotiv&gt;1&lt;/CreationMotiv&gt;&lt;/SupplierInfo&gt;&lt;AdditionalInformation&gt;&lt;id&gt;konta-live-20261017193943&lt;/id&gt;&lt;/AdditionalInformation&gt;&lt;/Document&gt;</a:Xml>
+          </a:XmlInvoice>
+          <a:XmlInvoice>
+            <a:Id i:nil="true" />
+            <a:Number />
+            <a:Seria />
+            <a:Message i:nil="true" />
+            <a:Status>2</a:Status>
+            <a:TimeStamp>2026-10-22T10:00:00+03:00</a:TimeStamp>
+            <a:InvoiceStatus>0</a:InvoiceStatus>
+            <a:Xml>&lt;Document&gt;&lt;SupplierInfo&gt;&lt;DeliveryDate&gt;2026-10-22T04:53:01.107Z&lt;/DeliveryDate&gt;&lt;Supplier IDNO="1099900000028"&gt;&lt;BankAccount Account="MD51AG860162762387162111" /&gt;&lt;/Supplier&gt;&lt;Buyer IDNO="1099900000017"&gt;&lt;BankAccount Account="MD21EX082453433968977068" /&gt;&lt;/Buyer&gt;&lt;Merchandises&gt;&lt;Row Code="1" Name="Servicii de testare" UnitOfMeasure="buc" Quantity="1.00" UnitPriceWithoutTVA="11.10" TotalPriceWithoutTVA="11.10" TVA="0" TotalTVA="0.00" TotalPrice="11.10" /&gt;&lt;/Merchandises&gt;&lt;CreationMotiv&gt;1&lt;/CreationMotiv&gt;&lt;/SupplierInfo&gt;&lt;AdditionalInformation&gt;&lt;id&gt;konta-live-20261022045301&lt;/id&gt;&lt;/AdditionalInformation&gt;&lt;/Document&gt;</a:Xml>
+          </a:XmlInvoice>
+          <a:XmlInvoice>
+            <a:Id i:nil="true" />
+            <a:Number />
+            <a:Seria />
+            <a:Message i:nil="true" />
+            <a:Status>2</a:Status>
+            <a:TimeStamp>2026-10-22T10:00:00+03:00</a:TimeStamp>
+            <a:InvoiceStatus>0</a:InvoiceStatus>
+            <a:Xml>&lt;Document&gt;&lt;SupplierInfo&gt;&lt;DeliveryDate&gt;2026-10-18T06:58:57.160Z&lt;/DeliveryDate&gt;&lt;Supplier IDNO="1099900000028"&gt;&lt;BankAccount Account="MD08EN088898186506590277" /&gt;&lt;/Supplier&gt;&lt;Buyer IDNO="1099900000017"&gt;&lt;BankAccount Account="MD35AG298229286314360507" /&gt;&lt;/Buyer&gt;&lt;Merchandises&gt;&lt;Row Code="1" Name="Servicii de testare, conturi înregistrate" UnitOfMeasure="buc" Quantity="1.00" UnitPriceWithoutTVA="15.58" TotalPriceWithoutTVA="15.58" TVA="0" TotalTVA="0.00" TotalPrice="15.58" /&gt;&lt;/Merchandises&gt;&lt;CreationMotiv&gt;2&lt;/CreationMotiv&gt;&lt;/SupplierInfo&gt;&lt;AdditionalInformation&gt;&lt;id&gt;konta-fixtures-20261018065852&lt;/id&gt;&lt;/AdditionalInformation&gt;&lt;/Document&gt;</a:Xml>
+          </a:XmlInvoice>
+          <a:XmlInvoice>
+            <a:Id i:nil="true" />
+            <a:Number />
+            <a:Seria />
+            <a:Message i:nil="true" />
+            <a:Status>2</a:Status>
+            <a:TimeStamp>2026-10-22T10:00:00+03:00</a:TimeStamp>
+            <a:InvoiceStatus>0</a:InvoiceStatus>
+            <a:Xml>&lt;Document&gt;&lt;SupplierInfo&gt;&lt;DeliveryDate&gt;2026-10-15T01:34:55.675Z&lt;/DeliveryDate&gt;&lt;Supplier IDNO="1099900000028"&gt;&lt;BankAccount Account="MD51AG860162762387162111" /&gt;&lt;/Supplier&gt;&lt;Buyer IDNO="1099900000017"&gt;&lt;BankAccount Account="MD21EX082453433968977068" /&gt;&lt;/Buyer&gt;&lt;Merchandises&gt;&lt;Row Code="1" Name="Servicii de testare" UnitOfMeasure="buc" Quantity="1.00" UnitPriceWithoutTVA="10.00" TotalPriceWithoutTVA="10.00" TVA="0" TotalTVA="0.00" TotalPrice="10.00" /&gt;&lt;/Merchandises&gt;&lt;CreationMotiv&gt;1&lt;/CreationMotiv&gt;&lt;/SupplierInfo&gt;&lt;AdditionalInformation&gt;&lt;id&gt;konta-live-20261015013455&lt;/id&gt;&lt;/AdditionalInformation&gt;&lt;/Document&gt;</a:Xml>
+          </a:XmlInvoice>
+        </a:Results>
+      </GetInvoicesForSigningResult>
+    </GetInvoicesForSigningResponse>
+  </s:Body>
+</s:Envelope>

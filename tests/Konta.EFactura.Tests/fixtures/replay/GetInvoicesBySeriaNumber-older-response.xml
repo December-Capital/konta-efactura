@@ -1,0 +1,33 @@
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" xmlns:u="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd">
+  <s:Header>
+    <ActivityId CorrelationId="00000000-0000-0000-0000-000000000022" xmlns="http://schemas.microsoft.com/2004/09/ServiceModel/Diagnostics">00000000-0000-0000-0000-000000000000</ActivityId>
+    <o:Security s:mustUnderstand="1" xmlns:o="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd">
+      <u:Timestamp u:Id="_0">
+        <u:Created>2026-10-22T07:00:00.000Z</u:Created>
+        <u:Expires>2026-10-22T07:05:00.000Z</u:Expires>
+      </u:Timestamp>
+    </o:Security>
+  </s:Header>
+  <s:Body>
+    <GetInvoicesBySeriaNumberResponse xmlns="http://tempuri.org/">
+      <GetInvoicesBySeriaNumberResult xmlns:a="http://schemas.datacontract.org/2004/07/AX.EFactura.Model.ApiModel" xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+        <a:RequestId>00000000-0000-0000-0000-000000000023</a:RequestId>
+        <a:Status>2</a:Status>
+        <a:TimeStamp>2026-10-22T10:00:00+03:00</a:TimeStamp>
+        <a:Message i:nil="true" />
+        <a:Results>
+          <a:XmlInvoice>
+            <a:Id i:nil="true" />
+            <a:Number>000000129</a:Number>
+            <a:Seria>EXMP</a:Seria>
+            <a:Message i:nil="true" />
+            <a:Status>2</a:Status>
+            <a:TimeStamp>2026-10-22T10:00:00+03:00</a:TimeStamp>
+            <a:InvoiceStatus>8</a:InvoiceStatus>
+            <a:Xml>&lt;Document&gt;&lt;SupplierInfo&gt;&lt;Seria&gt;EXMP&lt;/Seria&gt;&lt;Number&gt;000000129&lt;/Number&gt;&lt;DeliveryDate&gt;2017-02-09T11:02:40.804Z&lt;/DeliveryDate&gt;&lt;Supplier IDNO="1099900000040" Title="EXEMPLU FURNIZOR I.S." Address="MD-2001, Strada Exemplului nr.2, mun. Chisinau, Republica Moldova" CodTVA="0099002" NResident="false" IsSupplierOnly="false" TaxpayerType="1"&gt;&lt;BankAccount BranchTitle="BC'Victoriabank'S.A. fil.nr.11 Chisinau" BranchCode="VICBMD2X883" Account="MD33VI167990695471475MDL"&gt;&lt;IsManual&gt;false&lt;/IsManual&gt;&lt;/BankAccount&gt;&lt;RiskAnalysisValid xmlns:p3="http://www.w3.org/2001/XMLSchema-instance" p3:nil="true" /&gt;&lt;IsRegistered&gt;false&lt;/IsRegistered&gt;&lt;IsValid&gt;false&lt;/IsValid&gt;&lt;/Supplier&gt;&lt;Buyer IDNO="1099900000028" Title="EXEMPLU CUMPARATOR S.R.L." Address="SEC.CIOCANA Strada Exemplului nr.3" CodTVA="          " NResident="false" IsSupplierOnly="false" TaxpayerType="1"&gt;&lt;BankAccount BranchTitle=" " BranchCode=" " Account=""&gt;&lt;IsManual&gt;true&lt;/IsManual&gt;&lt;/BankAccount&gt;&lt;RiskAnalysisValid xmlns:p3="http://www.w3.org/2001/XMLSchema-instance" p3:nil="true" /&gt;&lt;IsRegistered&gt;false&lt;/IsRegistered&gt;&lt;IsValid&gt;false&lt;/IsValid&gt;&lt;/Buyer&gt;&lt;AttachedDocuments /&gt;&lt;Notes /&gt;&lt;TransportType /&gt;&lt;TransportNumber /&gt;&lt;TransportTrailerNumber /&gt;&lt;DriverInfo /&gt;&lt;DelegateSeria /&gt;&lt;DelegateNumber /&gt;&lt;DelegateName /&gt;&lt;DelegateDate xmlns:p2="http://www.w3.org/2001/XMLSchema-instance" p2:nil="true" /&gt;&lt;VehicleLogbook&gt;&lt;IssuedDate xmlns:p3="http://www.w3.org/2001/XMLSchema-instance" p3:nil="true" /&gt;&lt;Seria /&gt;&lt;Number /&gt;&lt;/VehicleLogbook&gt;&lt;LoadingPoint /&gt;&lt;UnloadingPoint /&gt;&lt;Redirections /&gt;&lt;Total&gt;1519&lt;/Total&gt;&lt;TotalTVA&gt;0&lt;/TotalTVA&gt;&lt;Merchandises&gt;&lt;Row Code="1" Name="Servicii prestate" UnitOfMeasure="buc" Quantity="1" UnitPrice="1519" TotalCost="1519" TotalTVA="0" TotalPrice="1519" PackageType=" " NumberOfPlaces=" " Volume=" " GrossWeight=" " /&gt;&lt;/Merchandises&gt;&lt;IsFarma&gt;false&lt;/IsFarma&gt;&lt;/SupplierInfo&gt;&lt;AdditionalInformation&gt;&lt;field&gt;EXEMPLU-0129&lt;/field&gt;&lt;/AdditionalInformation&gt;&lt;Signatures&gt;&lt;SignatureContent&gt;&lt;SignedDoc&gt;&lt;hash Id="_00000000-0000-0000-0000-000000000024"&gt;Hash is incapsulated into the signature&lt;/hash&gt;&lt;/SignedDoc&gt;&lt;/SignatureContent&gt;&lt;SignatureContent&gt;&lt;SignedDoc&gt;&lt;hash Id="_00000000-0000-0000-0000-000000000025"&gt;Hash is incapsulated into the signature&lt;/hash&gt;&lt;/SignedDoc&gt;&lt;/SignatureContent&gt;&lt;/Signatures&gt;&lt;/Document&gt;</a:Xml>
+          </a:XmlInvoice>
+        </a:Results>
+      </GetInvoicesBySeriaNumberResult>
+    </GetInvoicesBySeriaNumberResponse>
+  </s:Body>
+</s:Envelope>

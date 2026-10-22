@@ -10,9 +10,10 @@ accounting product. Every vendor writes it, nobody enjoys it, and when SFS chang
 find out at the same time. Better to find out together.
 
 > **Status: alpha.** The XML serialiser validates against SFS's schema, and `EFacturaClient` has
-> called every operation of SFS's test service except signing (2026-10-08): it posts drafts and
-> finds them again, looks up taxpayers and bank accounts. Signing could not be tried, so nothing
-> has been read back, printed or cancelled on a signed invoice yet. Do not put this in front of a
+> called every operation of SFS's test service except signing (2026-10-08): it posts drafts,
+> finds them again and deletes them (2026-10-22), looks up taxpayers and bank accounts. Signing
+> could not be tried. The one signed invoice read back is one received in 2017, in the format
+> before the current schema; none has been printed or cancelled. Do not put this in front of a
 > paying customer yet.
 
 ## What the protocol actually looks like
@@ -38,7 +39,7 @@ Worth knowing before you estimate anything:
 ### Invoice lifecycle
 
 ```
-0  Draft                 (deletable only in the SFS portal, never by API)
+0  Draft                 (deleted by its id with DeleteDraftInvoice, test service only so far)
 1  Signed by supplier
 2  Refused by buyer      (terminal)
 3  Accepted by buyer
@@ -47,15 +48,18 @@ Worth knowing before you estimate anything:
 7  Sent to buyer
 8  Signed by buyer
 10 Transported           (goods or services received)
+99 Deleted draft         (what a draft deleted by API is when asked for by its id)
 ```
 
-4 and 9 are not issued. Do not renumber them, do not fill the gaps, and do not assume a linear
+4 and 9 are not issued; 99 is in neither guide. Do not renumber them, do not fill the gaps, and do not assume a linear
 progression.
 
 ### The operations
 
-The guides describe 15; the service's WSDL (`spec/sfs/Service.wsdl`) has 19. The four the guides
-leave out are `Test`, `GetArchivedInvoices`, `GetBankAccountInfo` and `GetSeriaAndNumbers`. The 15:
+The guides describe 15. The test service's WSDL (`spec/sfs/Service.wsdl`, 2026-10-22) has 20, and
+the contract is generated from it; production's (`spec/sfs/Service-production.wsdl`) still has 19,
+without `DeleteDraftInvoice`. The five the guides leave out are `Test`, `GetArchivedInvoices`,
+`GetBankAccountInfo`, `GetSeriaAndNumbers` and `DeleteDraftInvoice`. The 15:
 
 `PostInvoices` · `PostInvoicesWithAttachment` · `PostAcceptedInvoices` · `PostRejectedInvoices` ·
 `PostCanceledInvoices` · `GetAcceptedInvoices` · `GetRejectedInvoices` · `GetInvoicesBySeriaNumber` ·
@@ -124,8 +128,9 @@ Collected so you do not have to rediscover them.
    totals that disagree with lines.
 4. **Serialise every number and date invariantly.** `ro-MD` uses a comma as the decimal separator;
    the wire format does not. There is a test that runs under `ro-MD` specifically to catch this.
-5. **Drafts cannot be deleted through the API**, only in the SFS portal. Plan your error handling
-   around that.
+5. **A draft is deleted through the API only on the test service so far** (`DeleteDraftInvoice`,
+   by the id `PostInvoices` answers; production's WSDL lacks it on 2026-10-22), and in the SFS
+   portal everywhere. The answer is no proof: see trap 18.
 6. **Cancellation is only allowed from the statuses the platform permits**, which is narrower than
    the enum suggests.
 7. **One credential set per legal entity**, not one per installation. An accounting firm holds many.
@@ -134,7 +139,8 @@ Collected so you do not have to rediscover them.
    is invalid. The tests validate every payload against `spec/sfs/TaxInvoiceSchema.xsd`.
 9. **SFS's own example XML files are not valid against SFS's own schema.** See `spec/sfs/README.md`.
 10. **The test environment answers `403` to any address SFS has not registered**, the API and the
-    web interface alike. Production serves its WSDL to anyone.
+    web interface alike. Production serves its WSDL to anyone, except that address (403 to the VPS
+    on 2026-10-22).
 11. **Both bank accounts are required in practice**, though the schema makes them optional. Leave
     out either and the platform refuses the invoice with its own `NullReferenceException` text,
     `Object reference not set to an instance of an object.` `TVA="-"` does the same.
@@ -144,13 +150,27 @@ Collected so you do not have to rediscover them.
 13. **A company that is not a VAT payer may use only `CreationMotiv` 1 or 2**, at a `TVA` of `0`,
     whatever the schema's note on 3 says. A VAT payer uses 4 or 5.
 14. **`GetSeriaAndNumbers` hands out a number** each time it is called. It is not a lookup.
-15. **A posted draft shows up minutes later**, with no series or number. Find it by your own
-    `AdditionalInformation/id` (`SearchInvoices` with `APIeInvoiceId`, or the XML from
-    `GetInvoicesForSigning`), and never read "not found" just after posting as "not posted".
+15. **A posted draft may show up in searches minutes later**, with no series or number (11 to 20
+    minutes in October 2026; 14 seconds on 2026-10-22). Keep the id `PostInvoices` answers
+    (`EFacturaPostResult.DraftIds`): asked by it, `GetInvoicesBySeriaNumber` answers at once
+    (`GetDraftsAsync`). Otherwise find it by your own `AdditionalInformation/id`
+    (`SearchInvoices` with `APIeInvoiceId`, or the XML from `GetInvoicesForSigning`), and never
+    read "not found" just after posting as "not posted".
 16. **Identical drafts are merged.** Post the same content twice and one draft remains, which
     makes a blind retry harmless but means two genuinely identical invoices need a difference.
 17. **A search filters by one invoice status, always.** The wire carries `InvoiceStatus` even when
     you mean "any", and 0 is Draft.
+18. **`DeleteDraftInvoice` answers "deleted" whatever the id.** `Status` 2 and "Factura Draft a fost
+    ștearsă cu succes." for a draft it deletes, for the same id again, and for an id it never had.
+    Check with a search, or ask for the draft by its id: a deleted one comes back with
+    `InvoiceStatus` 99, its XML and no id.
+19. **Only a search gives a draft's id.** `SearchInvoices` lists drafts with their `Id`;
+    `GetInvoicesForSigning` lists the same drafts with their XML and a nil `Id`. Signed invoices
+    have had none anywhere so far.
+20. **The test service runs ahead of production.** Its WSDL changed in October 2026 while
+    production's did not; generate from the one you call, and compare both
+    (`ClientTests.Production_lacks_only_what_the_test_service_added`). Production answers its
+    WSDL with `403` to the test service's registered address, so check it from elsewhere.
 
 ## Contributing
 

@@ -6,7 +6,8 @@ namespace Konta.EFactura.Tests;
 
 /// <summary>
 /// Invoices read back from the platform's XML: a signed one in the shape the schema gives (made-up
-/// parties, <c>fixtures/documents/</c>), and our own drafts read back as we built them.
+/// parties, <c>fixtures/documents/</c>), the test service's one in the format before it, anonymised,
+/// and our own drafts read back as we built them.
 /// </summary>
 public sealed class DocumentReaderTests
 {
@@ -52,6 +53,67 @@ public sealed class DocumentReaderTests
         // "-" is a code in SFS's classifier, not a number: it is kept as written.
         Assert.Equal(("-", -1m, -5.00m), (document.Lines[2].VatCode, document.Lines[2].Quantity, document.Lines[2].TotalWithVat));
         Assert.Equal((881.00m, 173.48m, 1054.48m), (document.TotalWithoutVat, document.TotalVat, document.TotalWithVat));
+    }
+
+    [Fact]
+    public void A_signed_invoice_in_the_older_format_is_read_with_what_it_states()
+    {
+        // The test service's invoice of 2017, anonymised (fixtures/README.md).
+        var document = InvoiceDocumentReader.Read(Fixture("received-older.xml"));
+
+        Assert.True(document.OlderFormat);
+        Assert.Equal(("EXMP", "000000129"), (document.Seria, document.Number));
+        Assert.Null(document.IssuedDate);
+        Assert.Equal(new DateTimeOffset(2017, 2, 9, 11, 2, 40, 804, TimeSpan.Zero), document.DeliveryDate);
+        Assert.Equal(("1099900000040", "0099002", "MD33VI167990695471475MDL"), (document.Supplier.Idno, document.Supplier.VatCode, document.Supplier.BankAccount));
+
+        // Ten spaces of VAT code, an empty account and a bank named by a space are absent, not values.
+        Assert.Equal(new EFacturaParty("1099900000028", "EXEMPLU CUMPARATOR S.R.L.", "SEC.CIOCANA Strada Exemplului nr.3", null, null, null, null), document.Buyer);
+
+        // No CreationMotiv, so nobody can say from the document whether it was issued as a VAT payer.
+        Assert.Null(document.CreationMotive);
+        Assert.Null(document.IssuedByVatPayer);
+        Assert.Null(document.CorrelationId);
+
+        Assert.Equal(new EFacturaDocumentLine("1", "Servicii prestate", "buc", 1m, 1519m, 1519m, null, 0m, 1519m), Assert.Single(document.Lines));
+        Assert.Equal((1519m, 0m, 1519m), (document.TotalWithoutVat, document.TotalVat, document.TotalWithVat));
+    }
+
+    [Fact]
+    public void A_document_in_the_current_format_is_never_read_as_an_older_one()
+    {
+        var current = InvoiceDocumentReader.Read(Fixture("received-signed.xml"));
+
+        Assert.False(current.OlderFormat);
+        Assert.True(current.IssuedByVatPayer);
+
+        // Without its CreationMotiv a current document is refused, whatever the older format allows.
+        var withoutMotive = Fixture("received-signed.xml").Replace("<CreationMotiv>4</CreationMotiv>", "", StringComparison.Ordinal);
+        Assert.Contains("CreationMotiv", Assert.Throws<FormatException>(() => InvoiceDocumentReader.Read(withoutMotive)).Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Rows_of_both_formats_in_one_document_are_refused()
+    {
+        var older = XElement.Parse(Fixture("received-older.xml"));
+        var current = XElement.Parse(Fixture("received-signed.xml")).Descendants("Row").First();
+        older.Descendants("Merchandises").Single().Add(current);
+
+        var refused = Assert.Throws<FormatException>(() => InvoiceDocumentReader.Read(older.ToString()));
+
+        Assert.Contains("mixes", refused.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("TotalCost=\"1519\"", "")]
+    [InlineData("UnitPrice=\"1519\"", "")]
+    [InlineData("TotalTVA=\"0\"", "")]
+    public void What_the_older_format_states_is_required_of_it(string remove, string replacement)
+    {
+        // Without TotalCost the row is not an older one, so it is held to the current format instead.
+        var broken = Fixture("received-older.xml").Replace(remove, replacement, StringComparison.Ordinal);
+
+        Assert.Throws<FormatException>(() => InvoiceDocumentReader.Read(broken));
     }
 
     [Fact]
