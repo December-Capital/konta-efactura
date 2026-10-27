@@ -11,6 +11,7 @@ and read by `DocumentReaderTests`. No real company, person, account or invoice i
 | `replay/GetInvoicesBySeriaNumber-older-*`, `CheckInvoicesStatus-*` | Recorded the same way for the one signed invoice on the test account, received in 2017 and signed by the buyer, in the format before the current schema. |
 | `documents/received-older.xml` | That invoice's XML, from `GetInvoicesBySeriaNumber-older`. |
 | `documents/received-signed.xml` | Not recorded: a signed invoice made up in the current schema's shape. |
+| `documents/signed-by-supplier.xml` | Recorded on 2026-10-27: a draft posted through the API (`konta-sign-20261027132851`), signed by the test company's director in the web interface and read back by `GetInvoicesBySeriaNumber`. Anonymised the same way; its series and number to `EXMP 000000130`, its XAdES signature removed. |
 
 Everything recorded on 2026-10-22 is anonymised the way the konta repository's
 `backend/tests/Konta.Integration.Tests/Fixtures/efactura/README.md` describes, with the same

@@ -6,8 +6,8 @@ namespace Konta.EFactura.Tests;
 
 /// <summary>
 /// Invoices read back from the platform's XML: a signed one in the shape the schema gives (made-up
-/// parties, <c>fixtures/documents/</c>), the test service's one in the format before it, anonymised,
-/// and our own drafts read back as we built them.
+/// parties, <c>fixtures/documents/</c>), one we posted and had signed on the test service, the test
+/// service's one in the format before it, both anonymised, and our own drafts read back as we built them.
 /// </summary>
 public sealed class DocumentReaderTests
 {
@@ -77,6 +77,40 @@ public sealed class DocumentReaderTests
 
         Assert.Equal(new EFacturaDocumentLine("1", "Servicii prestate", "buc", 1m, 1519m, 1519m, null, 0m, 1519m), Assert.Single(document.Lines));
         Assert.Equal((1519m, 0m, 1519m), (document.TotalWithoutVat, document.TotalVat, document.TotalWithVat));
+    }
+
+    [Fact]
+    public void An_invoice_we_posted_and_signed_is_read_with_what_the_platform_added()
+    {
+        // Signed in the web interface on 2026-10-27 and read back from the test service, anonymised
+        // (fixtures/README.md). The platform added Total, TotalTVA, IsFarma and flags the schema lacks.
+        var document = InvoiceDocumentReader.Read(Fixture("signed-by-supplier.xml"));
+
+        Assert.False(document.OlderFormat);
+        Assert.Equal(("EXMP", "000000130"), (document.Seria, document.Number));
+
+        // Written without an offset, in Chișinău time: 13:28:53 UTC, two seconds after the draft was posted.
+        Assert.Equal(new DateTimeOffset(2026, 10, 27, 15, 28, 53, 507, TimeSpan.FromHours(2)), document.IssuedDate);
+        Assert.Equal(new DateTimeOffset(2026, 10, 27, 13, 28, 51, 997, TimeSpan.Zero), document.DeliveryDate);
+
+        // Names and addresses are not in the signed XML; the buyer's VAT code is.
+        Assert.Equal(new EFacturaParty("1099900000028", null, null, null, "MD08EN088898186506590277", null, null), document.Supplier);
+        Assert.Equal(new EFacturaParty("1099900000017", null, null, "0099001", "MD35AG298229286314360507", null, null), document.Buyer);
+        Assert.Equal(1, document.CreationMotive);
+        Assert.Equal("konta-sign-20261027132851", document.CorrelationId);
+        Assert.Equal(new EFacturaDocumentLine("1", "Servicii de testare, semnare", "buc", 1m, 17.27m, 17.27m, "0", 0m, 17.27m), Assert.Single(document.Lines));
+    }
+
+    [Theory]
+    [InlineData("2026-07-15T12:00:00", 3)]
+    [InlineData("2026-01-15T12:00:00", 2)]
+    public void A_date_without_an_offset_is_Chisinau_time_in_summer_and_winter(string written, int offset)
+    {
+        var xml = Fixture("signed-by-supplier.xml").Replace("2026-10-27T15:28:53.507", written, StringComparison.Ordinal);
+
+        var issued = InvoiceDocumentReader.Read(xml).IssuedDate!.Value;
+
+        Assert.Equal((12, TimeSpan.FromHours(offset)), (issued.Hour, issued.Offset));
     }
 
     [Fact]

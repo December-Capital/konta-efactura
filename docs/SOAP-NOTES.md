@@ -32,7 +32,9 @@ Two WSDLs are committed. `spec/sfs/Service.wsdl` is the **test service's**, and 
 generated from it: on 2026-10-22 it was ahead of production's, with `DeleteDraftInvoice`, the
 drafts' ids and the `Id` beside series and number. `spec/sfs/Service-production.wsdl` is
 production's, kept to compare; `ClientTests` names every difference between the two and fails when
-either changes. The test service answers only its registered address, so fetch its WSDL there;
+either changes. **Since 2026-10-27 the test service publishes production's WSDL** (see below); the
+contract stays generated from `Service.wsdl`, which is a superset, and the live tests accept either.
+The test service answers only its registered address, so fetch its WSDL there;
 production answers that address with 403, so fetch production's anywhere else:
 
 ```bash
@@ -114,11 +116,11 @@ generated contract and the WSDL disagree on the operations or on any member of a
 - [x] **Identical drafts are merged.** Three posts of the same content (same parties, date and
       line, different `AdditionalInformation/id`) left one draft in the web interface; drafts that
       differ in amount and line name are all kept (2026-10-08).
-- [ ] Signing a posted draft in the web interface. The test company's director, who has the right
-      to sign, gets "Nu aveți dreptul să accesați acest funcțional! Contactați directorul!" on every
-      draft: the plain ones, one with `Title`, `Address`, `TaxpayerType` and bank names for both
-      sides, so not missing fields. A draft with the bank accounts the tax service has registered
-      (from `GetBankAccountInfo`) is posted to try next. Otherwise a question for SFS.
+- [x] Signing a posted draft in the web interface: **done on 2026-10-27** (see that day below).
+      "Nu aveți dreptul să accesați acest funcțional! Contactați directorul!" came from two things,
+      neither in the draft: e-Factura was open as the director in person rather than for the
+      company, and then the director's own user lacked the signing right, which e-Factura's
+      settings grant.
 - [x] **`SearchParameters.InvoiceStatus` is a filter, always applied.** 0 finds drafts and only
       drafts; 1 found none of them. A search covers one status at a time. `EFacturaSearch.Status`
       defaults to `Draft`.
@@ -165,7 +167,8 @@ generated contract and the WSDL disagree on the operations or on any member of a
 - [ ] Exact fault types. The guide names `AuthenticationFailedException`; none has been seen yet:
       wrong passwords and server errors come as HTML pages, refusals as per-invoice statuses.
 - [ ] Throttling and batch limits for `PostInvoices`.
-- [ ] Back-dating window. A limit is reported; confirm the exact number of days.
+- [ ] Back-dating window. A limit is reported; confirm the exact number of days. At signing it is
+      none: a draft issued on an earlier day is refused (2026-10-27, below).
 - [x] Whether `GetTaxpayersInfo` is usable for general IDNO validation, or only for counterparties
       you already trade with: any IDNO, including companies the API user's company never traded
       with (2026-10-08 and 2026-10-15). Konta fills a partner's official name, address, VAT code
@@ -250,6 +253,60 @@ The contract regenerated from the test service's WSDL, and every new piece calle
       `konta-registered-15`, the draft with the registered accounts for the signing attempt; it
       was posted again with the same content (a new id). The live tests now delete only the
       draft they post.
+
+## Seen on 2026-10-27
+
+The live tests, a draft posted and signed in the web interface, and the signed invoice read back:
+
+- [x] **The test service went back to production's contract.** Its WSDL is production's byte for
+      byte but for the address: no `DeleteDraftInvoice`, no `InvoiceIds` in the `PostInvoices`
+      answer, no `Id` in `InvoiceIndentificator`. `PostInvoices` still registers drafts, now without
+      ids (`DraftIds` empty); `SearchInvoices` lists them without one (`PlatformId` null);
+      `DeleteDraftInvoice` answers SFS's HTML error page with HTTP 500. The contract stays generated
+      from the 2026-10-22 WSDL, a superset; the live tests that post or delete by id run only when
+      the test service publishes it again (`LiveDraftIdsFact`), so a run leaves no draft it cannot
+      delete. Two runs that day each left one, deleted in the web interface.
+- [x] **Deleting a draft in the web interface shows in the API at once**: both were gone from the
+      next `GetInvoicesForSigning`.
+- [x] **Reaching the web interface.** The portal (`preproductie.sfs.md`) and e-Factura
+      (`efactura-pre.sfs.md`) answer only the registered address, but MPass staging
+      (`mpass.staging.egov.md`) refuses that address with a FortiGate "URL is banned" page (HTTP
+      403). A browser has to send `*.sfs.md` through the registered address and MPass directly: an
+      SSH SOCKS tunnel (`ssh -D 1080`) and a PAC file that proxies only `sfs.md`. Sign in to the
+      Cabinetul contribuabilului, switch to the company there, and open e-Factura from the
+      company's services; opened otherwise it shows the person (`Utilizatorul: <name>, <name>`)
+      and no invoices.
+- [x] **Signing needs the right in e-Factura's settings**, even for the director: the user's own
+      signing option, under Setări, had to be switched on first.
+- [x] **A draft can be signed only on the day it is issued.** Signing a draft of 2026-10-08 was
+      refused: "Data eliberării facturii fiscale nu poate fi anterioară datei de astăzi. Modificați
+      data eliberării și repetați procesul de semnare." Saving a change of date in the web interface
+      was refused too, with "Trebuie indicate Furnizor": our drafts carry the supplier's IDNO and
+      account but no name, which the web form seems to need. A draft posted that day signed.
+- [x] **The buyer from SFS's guide is short-cycle only** ("Doar ciclu scurt" beside its name when
+      signing); its `IsSupplierOnly` is true in the signed XML.
+- [x] **The signed invoice reads back** (`fixtures/documents/signed-by-supplier.xml`, anonymised):
+      `SearchInvoices` as supplier with `InvoiceStatus` 1 lists it with a series (`EBA`, not the
+      `EWWW` that `GetSeriaAndNumbers` reserved) and a number, no `Id`; `GetInvoicesBySeriaNumber`
+      gives its XML with our `AdditionalInformation/id` kept; `CheckInvoicesStatus` answers 1;
+      `GetInvoicesQRcodes` answers a PNG and the text with a link to
+      `https://efactura-pre.sfs.md:443/EFactura.aspx?id=` and a GUID.
+- [x] **`IssuedDate` has no offset and is Chișinău time**, `2026-10-27T15:28:53.507` for 13:28:53
+      UTC, while `DeliveryDate` keeps the `Z` we sent. `InvoiceDocumentReader` read it in the
+      machine's zone, two hours off on the VPS; it reads it as `Europe/Chisinau` since. It is
+      **when the draft was registered**, two seconds after posting, not when it was signed; the
+      signature's `SigningTime` says that (`15:30:04+02:00`).
+- [x] **Signing adds what the schema does not have**: `Total`, `TotalTVA`, `IsFarma`,
+      `TaxareaInversa`, `DelegateDate` and `DataContractMTender` under `SupplierInfo`; on each party
+      `isOldIdno`, `IsSupplierOnly`, `RiskAnalysisValid`, `IsRegistered`, `IsValid`,
+      `IsLiquidated`, `IsLegalPerson`, `IsShortCircle`, `IsLongCircle`, `IsInsolvency` and its
+      dates; `IsManual` in each bank account; `IsManualEdited`, `CalculationScenario` and an empty
+      `Dynamic` on each row. Neither guide explains the flags, so read none of them as facts. No
+      party has a name or address.
+- [x] **The signature is XAdES over a hash, with RSA-SHA1**: `Signatures/SignatureContent/SignedDoc`
+      holds a `hash` element and one `ds:Signature` whose signed object looks like a SHA-1 digest, not the
+      invoice XML, with the signer's qualified certificate, a `SigningTime` and an unsigned
+      time-stamp. Checking it against the invoice needs SFS's rule for that digest; not tried.
 
 ## Resilience
 
