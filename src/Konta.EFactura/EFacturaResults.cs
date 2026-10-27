@@ -68,8 +68,8 @@ public sealed record EFacturaInvoiceId(string Seria, string Number);
 /// <param name="TimeStamp">When the platform answered for it, by its own clock.</param>
 /// <param name="PlatformId">
 /// The platform's own id for the invoice (<c>Id</c>): set on a draft, the id <see cref="EFacturaPostResult.DraftIds"/>
-/// gave and <see cref="EFacturaClient.DeleteDraftAsync"/> takes; null where the platform sends none, as for
-/// a signed invoice so far.
+/// gave and <see cref="EFacturaClient.DeleteDraftAsync"/> takes; null where the platform sends none: a
+/// signed invoice so far, and every invoice from production or from the test service since 2026-10-27.
 /// </param>
 public sealed record EFacturaInvoice(EFacturaInvoiceId Id, EFacturaInvoiceStatus Status, string? Message, DateTime TimeStamp, Guid? PlatformId = null);
 
@@ -147,7 +147,7 @@ public sealed record EFacturaRefusal(int Order, string Message);
 /// <param name="DraftIds">
 /// The platform's id for each draft it registered (<c>InvoiceIds</c>), in the order it sent them: the
 /// handle <see cref="EFacturaClient.DeleteDraftAsync"/> takes and <see cref="EFacturaInvoice.PlatformId"/>
-/// lists. Empty from a service that sends none (production's WSDL had none on 2026-10-22). Which id
+/// lists. Empty from a service that sends none: production, and the test service since 2026-10-27. Which id
 /// belongs to which invoice is certain only for a batch of one.
 /// </param>
 public sealed record EFacturaPostResult(

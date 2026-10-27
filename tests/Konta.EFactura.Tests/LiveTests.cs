@@ -57,10 +57,11 @@ public sealed class LiveTests
     /// <summary>
     /// Posts a draft as the API user's company, so it runs only when <c>KONTA_EFACTURA_IDNO</c> names
     /// it; reads it back by the id the platform gave and deletes it by that id, so the run leaves
-    /// nothing. Only its own draft: the others on the test account are kept for a person, one of them
-    /// (<c>konta-registered-15</c>) with the registered accounts for the signing attempt.
+    /// nothing. Only its own draft: the others on the test account are kept for a person. Runs only
+    /// while the test service has the contract of 2026-10-22: since 2026-10-27 it has production's,
+    /// without drafts' ids or <c>DeleteDraftInvoice</c>, and every run would leave a draft behind.
     /// </summary>
-    [LivePostFact]
+    [LiveDraftIdsFact]
     public async Task A_draft_is_posted_with_the_platforms_id_read_back_and_deleted_by_it()
     {
         var invoice = Draft("konta-live-");
@@ -86,7 +87,7 @@ public sealed class LiveTests
         Assert.Equal((EFacturaInvoiceStatus.DeletedDraft, null as Guid?, invoice.CorrelationId), (gone.Status, gone.PlatformId, gone.CorrelationId));
     }
 
-    [LiveFact]
+    [LiveDraftIdsFact]
     public async Task Deleting_a_draft_nobody_holds_is_answered_as_done_all_the_same()
     {
         var deletion = await Live("DeleteDraftInvoice-unknown", client => client.DeleteDraftAsync(Guid.NewGuid()));
@@ -97,16 +98,38 @@ public sealed class LiveTests
     }
 
     [LivePostFact]
-    public async Task Drafts_are_listed_by_a_search_with_the_platforms_id_and_for_signing_without_it()
+    public async Task Drafts_are_listed_by_a_search_and_for_signing_with_ids_only_where_the_contract_has_them()
     {
         // Drafts from earlier runs, posted here and by the konta repository's gateway tests.
         var searched = await Live("SearchInvoices-drafts", client => client.SearchInvoicesAsync(EFacturaActorRole.Supplier, new EFacturaSearch()));
         var toSign = await Live("GetInvoicesForSigning-drafts", client => client.GetInvoicesForSigningAsync(EFacturaActorRole.Supplier));
 
         Assert.NotEmpty(searched);
-        Assert.All(searched, d => Assert.NotNull(d.PlatformId));
         Assert.NotEmpty(toSign);
         Assert.All(toSign, d => Assert.Null(d.PlatformId));
+
+        // A search gave each draft its id under the contract of 2026-10-22, and gives none under production's.
+        Assert.All(searched, d => Assert.Equal(TestServiceContract.HasDraftIds, d.PlatformId is not null));
+    }
+
+    [LiveFact]
+    public async Task The_invoice_signed_on_2026_10_27_is_read_with_its_series_and_our_id()
+    {
+        // Posted as konta-sign-20261027132851 and signed by the test company's director in the web interface.
+        var signed = await Live("SearchInvoices-signed-by-supplier", client => client.SearchInvoicesAsync(
+            EFacturaActorRole.Supplier, new EFacturaSearch { Status = EFacturaInvoiceStatus.SignedBySupplier }));
+        var found = await Live("GetInvoicesBySeriaNumber-signed", client => client.GetInvoicesAsync(signed.Select(s => s.Id)));
+
+        var ours = Assert.Single(found, f => f.CorrelationId == "konta-sign-20261027132851");
+        var document = ours.ReadDocument()!;
+
+        Assert.Equal(EFacturaInvoiceStatus.SignedBySupplier, ours.Status);
+        Assert.False(document.OlderFormat);
+        Assert.Equal((ours.Id.Seria, ours.Id.Number), (document.Seria, document.Number));
+        Assert.NotEmpty(document.Number!);
+
+        // Issued when the draft was registered (13:28:53 UTC), not when it was signed two minutes later.
+        Assert.InRange(document.IssuedDate!.Value, new DateTimeOffset(2026, 10, 27, 13, 28, 53, TimeSpan.Zero), new DateTimeOffset(2026, 10, 27, 13, 28, 54, TimeSpan.Zero));
     }
 
     [LiveFact]
@@ -130,12 +153,17 @@ public sealed class LiveTests
     }
 
     [LiveFact]
-    public async Task The_test_service_publishes_the_committed_wsdl()
+    public async Task The_test_service_publishes_one_of_the_committed_wsdls()
     {
         var live = LiveSettings.Load()!;
+        var published = Wsdl.Shape(await Published(EFacturaEndpoints.Test, live.Proxy));
 
-        // A difference means SFS changed the service: commit its WSDL and regenerate (SOAP-NOTES.md).
-        Assert.Equal(Wsdl.Shape(Wsdl.Committed("Service.wsdl")), Wsdl.Shape(await Published(EFacturaEndpoints.Test, live.Proxy)));
+        // Service.wsdl until 2026-10-27, production's since. Anything else means SFS changed the service
+        // again: commit its WSDL and regenerate (SOAP-NOTES.md). The diff shown is against Service.wsdl.
+        if (!published.SequenceEqual(Wsdl.Shape(Wsdl.Committed("Service-production.wsdl"))))
+        {
+            Assert.Equal(Wsdl.Shape(Wsdl.Committed("Service.wsdl")), published);
+        }
     }
 
     /// <summary>
@@ -260,7 +288,7 @@ public sealed class LiveTests
     }
 
     /// <summary>The WSDL a service publishes.</summary>
-    private static async Task<XDocument> Published(Uri address, Uri? proxy)
+    internal static async Task<XDocument> Published(Uri address, Uri? proxy)
     {
         using var http = new HttpClient(proxy is null ? new HttpClientHandler() : new HttpClientHandler { Proxy = new System.Net.WebProxy(proxy), UseProxy = true })
         {
@@ -318,6 +346,52 @@ public sealed class ProductionWsdlFactAttribute : FactAttribute
             Skip = "Fetches production's WSDL: set KONTA_EFACTURA_PRODUCTION_WSDL=1 where production answers (not the VPS).";
         }
     }
+}
+
+/// <summary>
+/// A live fact that posts or deletes drafts by the platform's id, run only while the test service
+/// publishes the contract of 2026-10-22 (<c>spec/sfs/Service.wsdl</c>), the one with drafts' ids and
+/// <c>DeleteDraftInvoice</c>, and with the API user's company IDNO.
+/// </summary>
+public sealed class LiveDraftIdsFactAttribute : FactAttribute
+{
+    public LiveDraftIdsFactAttribute()
+    {
+        if (LiveSettings.Load() is not { Idno: not null })
+        {
+            Skip = "Posts a draft as the API user's company: set KONTA_EFACTURA_IDNO as well, or put it in .env.";
+        }
+        else if (!TestServiceContract.HasDraftIds)
+        {
+            Skip = "The test service does not publish spec/sfs/Service.wsdl (since 2026-10-27 it publishes production's): no drafts' ids and no DeleteDraftInvoice, so a posted draft could not be deleted.";
+        }
+    }
+}
+
+/// <summary>Which contract the test service publishes, fetched once per run.</summary>
+internal static class TestServiceContract
+{
+    private static readonly Lazy<bool> DraftIds = new(() =>
+    {
+        if (LiveSettings.Load() is not { } live)
+        {
+            return false;
+        }
+
+        try
+        {
+            var published = LiveTests.Published(EFacturaEndpoints.Test, live.Proxy).GetAwaiter().GetResult();
+
+            return Wsdl.Shape(published).SequenceEqual(Wsdl.Shape(Wsdl.Committed("Service.wsdl")));
+        }
+        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException)
+        {
+            return false;
+        }
+    });
+
+    /// <summary>Whether it publishes the contract of 2026-10-22, with drafts' ids and <c>DeleteDraftInvoice</c>.</summary>
+    public static bool HasDraftIds => DraftIds.Value;
 }
 
 /// <summary>A live fact that also needs the API user's company IDNO, because it posts as that company.</summary>

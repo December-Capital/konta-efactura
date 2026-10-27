@@ -53,7 +53,10 @@ public sealed record EFacturaDocumentLine(
 /// </remarks>
 /// <param name="Seria">The series, on a signed invoice.</param>
 /// <param name="Number">The number, on a signed invoice.</param>
-/// <param name="IssuedDate">When it was issued, on a signed invoice.</param>
+/// <param name="IssuedDate">
+/// When it was issued, on a signed invoice. On one posted through the API and signed later, the
+/// platform wrote when the draft was registered, not when it was signed (2026-10-27).
+/// </param>
 /// <param name="DeliveryDate">The delivery date, which every document has.</param>
 /// <param name="Supplier">The supplier.</param>
 /// <param name="Buyer">The buyer.</param>
@@ -109,6 +112,9 @@ public sealed record EFacturaDocument(
 public static class InvoiceDocumentReader
 {
     private static readonly CultureInfo Wire = CultureInfo.InvariantCulture;
+
+    /// <summary>The platform's clock (SOAP-NOTES.md: local time, +03:00 in summer, +02:00 in winter).</summary>
+    private static readonly TimeZoneInfo Chisinau = TimeZoneInfo.FindSystemTimeZoneById("Europe/Chisinau");
 
     /// <summary>Reads one <c>&lt;Document&gt;</c>, or the only one in a <c>&lt;Documents&gt;</c>.</summary>
     /// <param name="xml">The XML, as the platform returned it.</param>
@@ -250,11 +256,22 @@ public static class InvoiceDocumentReader
             ? value
             : throw new FormatException($"{what} is not a whole number: '{element.Value}'.");
 
+    /// <summary>
+    /// A date as written. One without an offset is the platform's own clock, Chișinău time: the
+    /// <c>IssuedDate</c> of an invoice signed on 2026-10-27 read <c>2026-10-27T15:28:53.507</c> for
+    /// 13:28:53 UTC. Never the reading machine's zone, which <see cref="XmlConvert"/> would assume.
+    /// </summary>
     private static DateTimeOffset Date(XElement element, string what)
     {
+        var value = element.Value.Trim();
+
         try
         {
-            return XmlConvert.ToDateTimeOffset(element.Value.Trim());
+            var written = XmlConvert.ToDateTime(value, XmlDateTimeSerializationMode.RoundtripKind);
+
+            return written.Kind == DateTimeKind.Unspecified
+                ? new DateTimeOffset(written, Chisinau.GetUtcOffset(written))
+                : XmlConvert.ToDateTimeOffset(value);
         }
         catch (FormatException exception)
         {

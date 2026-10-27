@@ -7,9 +7,8 @@ face asta. Este gratuită și oricine o poate folosi sau îmbunătăți.
 
 > **Stadiu: versiune timpurie.** Programul pregătește corect factura în forma cerută de SFS, iar
 > testele o verifică după schema oficială a SFS. A trimis facturi ca ciorne în mediul de test al
-> SFS și le-a șters. Semnarea și anularea nu sunt încă încercate; singura factură semnată citită
-> este una primită în 2017, în forma de dinainte de schema actuală. Nu o folosiți încă pentru
-> clienți.
+> SFS. O ciornă trimisă de program a fost semnată în interfața web, iar programul a citit factura
+> semnată. Anularea nu este încă încercată. Nu o folosiți încă pentru clienți.
 
 ## De ce este deschisă
 
@@ -22,7 +21,7 @@ Transformă o factură în fișierul pe care îl cere e-Factura și oprește gre
 TVA-ul scris ca 0,20 în loc de 20, totaluri care nu dau cât suma rândurilor, câmpuri obligatorii
 lipsă.
 
-Trimite facturile ca ciorne și le poate șterge, caută facturi și verifică datele unei firme după IDNO. Urmează
+Trimite facturile ca ciorne, caută facturi și verifică datele unei firme după IDNO. Urmează
 aflarea stării facturilor semnate, acceptarea și respingerea.
 
 Documentele primite de la SFS, cu adresele de test și de producție, sunt în

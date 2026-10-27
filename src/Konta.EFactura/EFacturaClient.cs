@@ -173,7 +173,12 @@ public sealed class EFacturaClient : IAsyncDisposable
     /// on a draft a search listed. Only a draft: a signed invoice is cancelled, never deleted.
     /// </summary>
     /// <remarks>
-    /// <para>On SFS's test service since October 2026; production's WSDL did not have it on 2026-10-22.</para>
+    /// <para>
+    /// On SFS's test service from October 2026 until 2026-10-27, when the test service went back to
+    /// production's contract, which has no such operation; production has never had it. Where it is
+    /// missing the service answers an HTML error page, raised as a <see cref="System.ServiceModel.ProtocolException"/>:
+    /// delete drafts in the web interface there, which shows at once in the API.
+    /// </para>
     /// <para>
     /// <b>The answer proves nothing.</b> The test service answers <c>Status</c> 2 and "Factura Draft a
     /// fost ștearsă cu succes." for any id: a listed draft, which it does delete at once, the same id
@@ -204,6 +209,8 @@ public sealed class EFacturaClient : IAsyncDisposable
     /// <see cref="Invoice.CorrelationId"/>, which <c>GetInvoicesForSigning</c> gives without the id.
     /// </summary>
     /// <remarks>
+    /// Needs a service that knows the <c>Id</c> beside series and number: the test service from
+    /// October 2026 until 2026-10-27, not production nor the test service since.
     /// Seen on the test service on 2026-10-22: a draft answered at once with its XML and its id, even
     /// one posted a second before; a deleted one with <see cref="EFacturaInvoiceStatus.DeletedDraft"/>,
     /// its XML and no id.
