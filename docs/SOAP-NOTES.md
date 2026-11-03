@@ -339,6 +339,19 @@ From the PC through the SSH tunnel to the registered address (`ssh -N -D 127.0.0
       total that is wrong is not yet seen (the three drafts, `konta-round-20261103142404-*`, stay on
       the test account to try). `InvoiceLine` rounds half to even; a product that rounds otherwise
       in its books must post its own amounts or carry a ban's difference to SFS.
+- [x] **A draft with both parties' names prints them.** `LiveProbes` posted
+      `konta-issue-20261103145245` with each party's `Title` as `GetTaxpayersInfo` names it and its
+      row's amount as the issuer's books round it (3 × 3.375 = 10.13, `Net`); the director signed it
+      in the web interface the same day as `EBA 000002596`. Read back, its document keeps both
+      titles and the row as posted (10.13, with `IsManualEdited` false and `CalculationScenario` 0
+      added); its PDF prints "Furnizor" with its name and account and "Cumpărător" with its name.
+- [x] **`DeliveryDate` went out in local time with a `Z`**: the draft above, posted at 14:52 UTC,
+      said `16:52:44.124Z` (`InvoiceXml` formatted the offset's own clock). SFS printed the date of
+      the day either way. It is written in UTC since.
+- [x] **`PostCanceledInvoices` cancels a signed invoice at once**, though the semi-automated guide
+      leaves cancelling to the web interface: for `EBA 000002596` with a reason, `Status` 2 and the
+      invoice's result done, and `CheckInvoicesStatus` straight after answered `InvoiceStatus` 5
+      (cancelled by the supplier). Nothing had to be confirmed in the web interface.
 
 ## Resilience
 

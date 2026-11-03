@@ -172,6 +172,24 @@ public sealed class InvoiceXmlTests
     }
 
     [Fact]
+    public void Writes_the_delivery_date_in_utc_as_its_z_says()
+    {
+        var invoice = Sample(Line());
+        var local = new Invoice
+        {
+            SupplierIdno = invoice.SupplierIdno,
+            BuyerIdno = invoice.BuyerIdno,
+            SupplierBankAccount = invoice.SupplierBankAccount,
+            BuyerBankAccount = invoice.BuyerBankAccount,
+            DeliveryDate = new DateTimeOffset(2026, 11, 3, 16, 52, 44, 124, TimeSpan.FromHours(2)),
+            CreationMotive = invoice.CreationMotive,
+            Lines = invoice.Lines,
+        };
+
+        Assert.Equal("2026-11-03T14:52:44.124Z", XDocument.Parse(InvoiceXml.Build([local])).Descendants("DeliveryDate").Single().Value);
+    }
+
+    [Fact]
     public void Echoes_our_correlation_id()
     {
         var xml = XDocument.Parse(InvoiceXml.Build([Sample(Line())]));

@@ -60,6 +60,83 @@ public sealed class LiveProbes(ITestOutputHelper output)
         Assert.Equal(3, result.Total);
     }
 
+    /// <summary>
+    /// A draft as the product now issues one (HANDOFF N5): both parties named as SFS's register names
+    /// them, and the books' own amount, 3 × 3.375 posted as 10.13 (half away from zero). Posted today,
+    /// for the director to sign today in the web interface; <c>issued</c> reads it back after.
+    /// </summary>
+    [LiveProbeFact("issue")]
+    public async Task A_draft_with_both_names_and_the_books_amount()
+    {
+        var draft = LiveTests.Draft("");
+        var named = await LiveTests.Live("GetTaxpayersInfo-issue", client => client.GetTaxpayersAsync([draft.SupplierIdno, draft.BuyerIdno]));
+        var stamp = DateTime.UtcNow.ToString("yyyyMMddHHmmss", CultureInfo.InvariantCulture);
+        var invoice = new Invoice
+        {
+            SupplierIdno = draft.SupplierIdno,
+            BuyerIdno = draft.BuyerIdno,
+            SupplierName = named.Single(t => t.FiscalCode == draft.SupplierIdno).Name,
+            BuyerName = named.Single(t => t.FiscalCode == draft.BuyerIdno).Name,
+            SupplierBankAccount = draft.SupplierBankAccount,
+            BuyerBankAccount = draft.BuyerBankAccount,
+            DeliveryDate = draft.DeliveryDate,
+            CreationMotive = draft.CreationMotive,
+            CorrelationId = $"konta-issue-{stamp}",
+            Lines = [new InvoiceLine { Code = "1", Name = "Servicii de testare, emitere", UnitOfMeasure = "buc", Quantity = 3m, UnitPriceWithoutVat = 3.375m, VatPercent = 0m, Net = 10.13m, Vat = 0m }],
+        };
+
+        var result = await LiveTests.Live("PostInvoices-issue", client => client.PostInvoicesAsync([invoice]));
+
+        output.WriteLine($"{invoice.CorrelationId}: posted {result.Posted} of {result.Total} {result.ErrorMessage}");
+        output.WriteLine($"Supplier '{invoice.SupplierName}', buyer '{invoice.BuyerName}'");
+        Assert.True(result.AllPosted, result.ErrorMessage);
+    }
+
+    /// <summary>The issue probe's invoice once signed: its row as SFS keeps it, and its PDF in <c>fixtures/live/</c>.</summary>
+    [LiveProbeFact("issued")]
+    public async Task The_issued_draft_once_signed()
+    {
+        var signed = await LiveTests.Live("SearchInvoices-issued", client => client.SearchInvoicesAsync(
+            EFacturaActorRole.Supplier, new EFacturaSearch { Status = EFacturaInvoiceStatus.SignedBySupplier }));
+        var found = await LiveTests.Live("GetInvoicesBySeriaNumber-issued", client => client.GetInvoicesAsync(signed.Select(s => s.Id)));
+        var ours = found.Where(f => f.CorrelationId?.StartsWith("konta-issue-", StringComparison.Ordinal) == true).ToList();
+
+        foreach (var invoice in ours)
+        {
+            var document = XDocument.Parse(invoice.Xml!);
+            output.WriteLine($"{invoice.CorrelationId} {invoice.Id.Seria} {invoice.Id.Number} {invoice.Status}");
+            output.WriteLine($"  Supplier Title '{document.Descendants("Supplier").Single().Attribute("Title")?.Value}', Buyer Title '{document.Descendants("Buyer").Single().Attribute("Title")?.Value}'");
+            output.WriteLine($"  Row {string.Join(" ", document.Descendants("Row").Single().Attributes().Where(a => a.Name.LocalName != "Name").Select(a => $"{a.Name}={a.Value}"))}");
+
+            var pdf = await LiveTests.Live("GetInvoicesContentForPrint-issued", client => client.GetPdfAsync([invoice.Id], EFacturaActorRole.Supplier), TimeSpan.FromMinutes(4));
+            File.WriteAllBytes(Path.Combine(LiveSettings.Load()!.Root, "fixtures", "live", $"{invoice.CorrelationId}.pdf"), pdf ?? []);
+            output.WriteLine($"  PDF {pdf?.Length ?? 0} bytes");
+        }
+
+        Assert.NotEmpty(ours);
+    }
+
+    /// <summary>
+    /// Cancels the one invoice the issue probe made, signed on 2026-11-03 (<c>EBA 000002596</c>,
+    /// found by our id, never by guessing), then asks where SFS shows it: what the product's
+    /// cancellation does (HANDOFF N42). Nothing else on the test account is touched.
+    /// </summary>
+    [LiveProbeFact("cancel")]
+    public async Task The_issued_invoice_cancelled_and_where_sfs_shows_it_after()
+    {
+        var signed = await LiveTests.Live("SearchInvoices-cancel", client => client.SearchInvoicesAsync(
+            EFacturaActorRole.Supplier, new EFacturaSearch { Status = EFacturaInvoiceStatus.SignedBySupplier }));
+        var found = await LiveTests.Live("GetInvoicesBySeriaNumber-cancel", client => client.GetInvoicesAsync(signed.Select(s => s.Id)));
+        var ours = Assert.Single(found, f => f.CorrelationId == "konta-issue-20261103145245");
+        Assert.Equal(("EBA", "000002596"), (ours.Id.Seria, ours.Id.Number));
+
+        var answer = Assert.Single(await LiveTests.Live("PostCanceledInvoices", client => client.CancelInvoicesAsync([(ours.Id, "Factură de test, emisă din Konta")])));
+        output.WriteLine($"Cancel: done {answer.Done}, message '{answer.Message}'");
+
+        var after = Assert.Single(await LiveTests.Live("CheckInvoicesStatus-after-cancel", client => client.CheckInvoicesStatusAsync([ours.Id])));
+        output.WriteLine($"After: status {after.Status} ({(int)after.Status}), message '{after.Message}'");
+    }
+
     /// <summary>The rounding probe's drafts as SFS keeps them, minutes after posting: whether it rewrote a total.</summary>
     [LiveProbeFact("rounding-readback")]
     public async Task The_rounding_drafts_as_sfs_keeps_them()

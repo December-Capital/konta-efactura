@@ -71,7 +71,9 @@ public static class InvoiceXml
 
         var supplierInfo = new XElement(
             "SupplierInfo",
-            new XElement("DeliveryDate", invoice.DeliveryDate.ToString("yyyy-MM-ddTHH:mm:ss.fffZ", Wire)),
+            // In UTC, as the Z says: formatted as given, a Chișinău time went out two or three hours off
+            // (a draft posted at 14:52 UTC said 16:52Z on 2026-11-03).
+            new XElement("DeliveryDate", invoice.DeliveryDate.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ", Wire)),
             Party("Supplier", invoice.SupplierIdno, invoice.SupplierName, invoice.SupplierBankAccount),
             Party("Buyer", invoice.BuyerIdno, invoice.BuyerName, invoice.BuyerBankAccount),
             new XElement("Merchandises", invoice.Lines.Select(Row)),
