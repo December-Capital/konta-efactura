@@ -172,10 +172,81 @@ public sealed class InvoiceXmlTests
     }
 
     [Fact]
+    public void Writes_the_delivery_date_in_utc_as_its_z_says()
+    {
+        var invoice = Sample(Line());
+        var local = new Invoice
+        {
+            SupplierIdno = invoice.SupplierIdno,
+            BuyerIdno = invoice.BuyerIdno,
+            SupplierBankAccount = invoice.SupplierBankAccount,
+            BuyerBankAccount = invoice.BuyerBankAccount,
+            DeliveryDate = new DateTimeOffset(2026, 11, 3, 16, 52, 44, 124, TimeSpan.FromHours(2)),
+            CreationMotive = invoice.CreationMotive,
+            Lines = invoice.Lines,
+        };
+
+        Assert.Equal("2026-11-03T14:52:44.124Z", XDocument.Parse(InvoiceXml.Build([local])).Descendants("DeliveryDate").Single().Value);
+    }
+
+    [Fact]
     public void Echoes_our_correlation_id()
     {
         var xml = XDocument.Parse(InvoiceXml.Build([Sample(Line())]));
 
         Assert.Equal("konta-1", xml.Descendants("id").Single().Value);
+    }
+
+    [Fact]
+    public void Writes_each_partys_name_as_its_title()
+    {
+        var invoice = Sample(Line());
+        var named = new Invoice
+        {
+            SupplierIdno = invoice.SupplierIdno,
+            BuyerIdno = invoice.BuyerIdno,
+            SupplierName = " Exemplu SRL ",
+            BuyerName = "Cumpărător SA",
+            SupplierBankAccount = invoice.SupplierBankAccount,
+            BuyerBankAccount = invoice.BuyerBankAccount,
+            DeliveryDate = invoice.DeliveryDate,
+            CreationMotive = invoice.CreationMotive,
+            Lines = invoice.Lines,
+        };
+
+        var xml = XDocument.Parse(InvoiceXml.Build([named]));
+
+        Assert.Equal("Exemplu SRL", xml.Descendants("Supplier").Single().Attribute("Title")!.Value);
+        Assert.Equal("Cumpărător SA", xml.Descendants("Buyer").Single().Attribute("Title")!.Value);
+        Assert.Null(XDocument.Parse(InvoiceXml.Build([invoice])).Descendants("Supplier").Single().Attribute("Title"));
+    }
+
+    [Fact]
+    public void Posts_the_issuers_own_amounts_rounded_another_way()
+    {
+        // 3 x 3.375 = 10.125: half to even is 10.12, the books' half away from zero 10.13.
+        var line = new InvoiceLine { Code = "1", Name = "Servicii", UnitOfMeasure = "buc", Quantity = 3m, UnitPriceWithoutVat = 3.375m, VatPercent = 20m, Net = 10.13m, Vat = 2.03m };
+
+        var row = XDocument.Parse(InvoiceXml.Build([Sample(line)])).Descendants("Row").Single();
+
+        Assert.Equal("10.13", row.Attribute("TotalPriceWithoutTVA")!.Value);
+        Assert.Equal("2.03", row.Attribute("TotalTVA")!.Value);
+        Assert.Equal("12.16", row.Attribute("TotalPrice")!.Value);
+        Assert.Equal("10.12", XDocument.Parse(InvoiceXml.Build([Sample(Line(quantity: 3m, unitPrice: 3.375m, vatPercent: 0m))])).Descendants("Row").Single().Attribute("TotalPriceWithoutTVA")!.Value);
+    }
+
+    [Theory]
+    [InlineData(10.14, null)]
+    [InlineData(10.125, null)]
+    [InlineData(10.13, 2.05)]
+    public void Rejects_an_amount_that_is_not_the_line_rounded(double net, double? vat)
+    {
+        var line = new InvoiceLine
+        {
+            Code = "1", Name = "Servicii", UnitOfMeasure = "buc", Quantity = 3m, UnitPriceWithoutVat = 3.375m, VatPercent = 20m,
+            Net = (decimal)net, Vat = vat is null ? null : (decimal)vat.Value,
+        };
+
+        Assert.Throws<InvalidOperationException>(() => InvoiceXml.Build([Sample(line)]));
     }
 }

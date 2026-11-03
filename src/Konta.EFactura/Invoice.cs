@@ -11,6 +11,16 @@ public sealed class Invoice
     /// <summary>Buyer IDNO (13 digits).</summary>
     public required string BuyerIdno { get; init; }
 
+    /// <summary>
+    /// The supplier's name (<c>Title</c>). Optional in the schema, but SFS prints the name a document
+    /// carries and nothing else: without it its PDF leaves "Furnizor" blank, and its web form will not
+    /// save a change to the draft ("Trebuie indicate Furnizor").
+    /// </summary>
+    public string? SupplierName { get; init; }
+
+    /// <summary>The buyer's name (<c>Title</c>), printed as <see cref="SupplierName"/> is.</summary>
+    public string? BuyerName { get; init; }
+
     /// <summary>Delivery date and time.</summary>
     public required DateTimeOffset DeliveryDate { get; init; }
 
@@ -139,11 +149,21 @@ public sealed class InvoiceLine
     /// </summary>
     public required decimal VatPercent { get; init; }
 
+    /// <summary>
+    /// The line's amount excluding VAT as the issuer's books hold it, when they round otherwise than
+    /// this library (half to even). SFS keeps whatever amount is posted (SOAP-NOTES, 2026-11-03), so a
+    /// product whose rulebook rounds half away from zero posts its own. Left out, it is computed.
+    /// </summary>
+    public decimal? Net { get; init; }
+
+    /// <summary>The line's VAT as the issuer's books hold it; see <see cref="Net"/>.</summary>
+    public decimal? Vat { get; init; }
+
     /// <summary>Line total excluding VAT.</summary>
-    public decimal TotalWithoutVat => Round(Quantity * UnitPriceWithoutVat);
+    public decimal TotalWithoutVat => Net ?? Round(Quantity * UnitPriceWithoutVat);
 
     /// <summary>Line VAT.</summary>
-    public decimal VatAmount => Round(TotalWithoutVat * VatPercent / 100m);
+    public decimal VatAmount => Vat ?? Round(TotalWithoutVat * VatPercent / 100m);
 
     /// <summary>Line total including VAT.</summary>
     public decimal TotalWithVat => TotalWithoutVat + VatAmount;
@@ -175,6 +195,11 @@ public sealed class InvoiceLine
                 string.Create(CultureInfo.InvariantCulture, $"Line '{Name}' has zero quantity."));
         }
 
+        // An amount given by the issuer is any rounding to the ban of what the line works out to, so
+        // at most half a ban from it; anything further is a different line.
+        AssertRounded(Net, Quantity * UnitPriceWithoutVat, nameof(Net));
+        AssertRounded(Vat, TotalWithoutVat * VatPercent / 100m, nameof(Vat));
+
         // Sign consistency: a negative quantity must yield a negative line total. The integration
         // guide's own worked example gets this wrong, so it is worth asserting.
         if (decimal.Sign(Quantity) != decimal.Sign(TotalWithoutVat) && TotalWithoutVat != 0m)
@@ -183,6 +208,17 @@ public sealed class InvoiceLine
                 string.Create(
                     CultureInfo.InvariantCulture,
                     $"Line '{Name}' has quantity {Quantity} but total {TotalWithoutVat}; signs disagree."));
+        }
+    }
+
+    private void AssertRounded(decimal? given, decimal exact, string field)
+    {
+        if (given is { } amount && (decimal.Round(amount, 2) != amount || Math.Abs(amount - exact) > 0.005m))
+        {
+            throw new InvalidOperationException(
+                string.Create(
+                    CultureInfo.InvariantCulture,
+                    $"Line '{Name}' gives {field} {amount}, which is not {exact} rounded to the ban."));
         }
     }
 

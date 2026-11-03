@@ -22,6 +22,8 @@ public sealed class SchemaTests
     {
         SupplierIdno = "1002600001257",
         BuyerIdno = "1002600003354",
+        SupplierName = "Exemplu SRL",
+        BuyerName = "Cumpărător SA",
         SupplierBankAccount = "22241410046",
         BuyerBankAccount = "2224710SV12365037100",
         DeliveryDate = new DateTimeOffset(2026, 9, 30, 0, 0, 0, TimeSpan.Zero),
@@ -31,6 +33,7 @@ public sealed class SchemaTests
         [
             new InvoiceLine { Code = "1", Name = "Pâine", UnitOfMeasure = "buc", Quantity = 3m, UnitPriceWithoutVat = 7.5m, VatPercent = 8m },
             new InvoiceLine { Code = "2", Name = "Servicii", UnitOfMeasure = "ore", Quantity = 1.5m, UnitPriceWithoutVat = 400m, VatPercent = 20m },
+            new InvoiceLine { Code = "3", Name = "Rotunjit altfel", UnitOfMeasure = "buc", Quantity = 3m, UnitPriceWithoutVat = 3.375m, VatPercent = 20m, Net = 10.13m, Vat = 2.03m },
         ],
     };
 
