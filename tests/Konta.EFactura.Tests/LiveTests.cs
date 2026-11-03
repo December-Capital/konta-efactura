@@ -133,6 +133,21 @@ public sealed class LiveTests
     }
 
     [LiveFact]
+    public async Task The_invoice_signed_on_2026_10_27_prints_as_a_pdf()
+    {
+        var signed = await Live("SearchInvoices-signed-for-pdf", client => client.SearchInvoicesAsync(
+            EFacturaActorRole.Supplier, new EFacturaSearch { Status = EFacturaInvoiceStatus.SignedBySupplier }));
+        var found = await Live("GetInvoicesBySeriaNumber-for-pdf", client => client.GetInvoicesAsync(signed.Select(s => s.Id)));
+        var ours = Assert.Single(found, f => f.CorrelationId == "konta-sign-20261027132851");
+
+        var pdf = await Live("GetInvoicesContentForPrint-signed", client => client.GetPdfAsync([ours.Id], EFacturaActorRole.Supplier), TimeSpan.FromMinutes(4));
+
+        Assert.NotNull(pdf);
+        Assert.Equal("%PDF-"u8.ToArray(), pdf[..5]);
+        File.WriteAllBytes(Path.Combine(LiveSettings.Load()!.Root, "fixtures", "live", "signed-2026-10-27.pdf"), pdf);
+    }
+
+    [LiveFact]
     public async Task The_signed_invoice_of_2017_is_read_in_the_older_format()
     {
         // The one invoice the test account holds that is not a draft: received, signed by the buyer.
@@ -267,7 +282,7 @@ public sealed class LiveTests
     }
 
     /// <summary>A draft to the guide's company that no other draft says the same as, so the platform merges it with none.</summary>
-    private static Invoice Draft(string prefix)
+    internal static Invoice Draft(string prefix)
     {
         var live = LiveSettings.Load()!;
         var now = DateTime.UtcNow;
@@ -299,7 +314,7 @@ public sealed class LiveTests
     }
 
     /// <summary>One call to the test service, its exchange written to <c>fixtures/live/</c>.</summary>
-    private static async Task<T> Live<T>(string operation, Func<EFacturaClient, Task<T>> call)
+    internal static async Task<T> Live<T>(string operation, Func<EFacturaClient, Task<T>> call, TimeSpan? timeout = null)
     {
         var live = LiveSettings.Load()!;
         var recorded = new List<(string Direction, string Message)>();
@@ -309,7 +324,7 @@ public sealed class LiveTests
             EFacturaEndpoints.Test,
             live.User,
             live.Password,
-            new EFacturaClientOptions { Timeout = TimeSpan.FromMinutes(1), Proxy = live.Proxy, Recorder = (d, m) => recorded.Add((d, m)) }))
+            new EFacturaClientOptions { Timeout = timeout ?? TimeSpan.FromMinutes(1), Proxy = live.Proxy, Recorder = (d, m) => recorded.Add((d, m)) }))
         {
             answer = await call(client);
         }

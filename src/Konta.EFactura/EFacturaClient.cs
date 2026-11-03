@@ -146,13 +146,21 @@ public sealed class EFacturaClient : IAsyncDisposable
     /// <returns>How many the platform read and registered, and why it refused the others.</returns>
     /// <exception cref="EFacturaException">The batch is not valid against the platform's schema.</exception>
     public async Task<EFacturaPostResult> PostInvoicesAsync(
-        IReadOnlyList<Invoice> invoices, string? requestId = null, CancellationToken cancellationToken = default)
+        IReadOnlyList<Invoice> invoices, string? requestId = null, CancellationToken cancellationToken = default) =>
+        await PostInvoicesXmlAsync(InvoiceXml.Build(invoices), requestId, cancellationToken);
+
+    /// <summary>
+    /// Posts documents as written, unchecked: for live probes of what SFS accepts (a total rounded
+    /// another way, say), which <see cref="Invoice"/> would not let us write.
+    /// </summary>
+    internal async Task<EFacturaPostResult> PostInvoicesXmlAsync(
+        string invoicesXml, string? requestId = null, CancellationToken cancellationToken = default)
     {
         var request = new PostInvocesRequest
         {
             RequestId = requestId ?? Guid.NewGuid().ToString(),
             ActorRole = (int)EFacturaActorRole.Supplier,
-            InvoicesXml = InvoiceXml.Build(invoices),
+            InvoicesXml = invoicesXml,
             InvoicesXmlStatus = 0, // unsigned
         };
 

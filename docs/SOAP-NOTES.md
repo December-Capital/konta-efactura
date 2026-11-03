@@ -308,6 +308,38 @@ The live tests, a draft posted and signed in the web interface, and the signed i
       invoice XML, with the signer's qualified certificate, a `SigningTime` and an unsigned
       time-stamp. Checking it against the invoice needs SFS's rule for that digest; not tried.
 
+## Seen on 2026-11-03
+
+From the PC through the SSH tunnel to the registered address (`ssh -N -D 127.0.0.1:1080`,
+`KONTA_EFACTURA_PROXY=socks5://127.0.0.1:1080`):
+
+- [x] **The API user was refused for a time**: every call, `Test` included, answered a security
+      fault, "Username or password is incorrect", from the PC and from the registered address
+      alike, with the password that had worked on 2026-10-27. The director found the API user's
+      rights switched off in the web interface (Setări → Utilizatorii companiei), switched them on
+      and set a new password; calls with it were refused for a few minutes more (14:09 to at least
+      14:11 UTC), then answered from 14:15 with the same password. The fault names neither cause, so a refused API user reads the
+      same whether its password or its rights changed.
+- [x] **The test service still publishes production's contract**: no `DeleteDraftInvoice`, no ids.
+      14 live tests passed, 3 skipped as they should (two need drafts' ids, one production's WSDL).
+      `CheckInvoicesStatus` answered.
+- [x] **`GetInvoicesContentForPrint` prints a signed invoice**: for the invoice signed on
+      2026-10-27, as supplier, portrait, SFS answered `Status` 2 and a two-page PDF (218 kB,
+      `Format` `PDF`): the factură fiscală with series and number, both fiscal codes and the buyer's
+      VAT code, the line and totals, the director's name beside "Aplicată semnătura electronică de
+      către Furnizor" and the date. **Both parties' names are blank**: SFS prints the `Title` a
+      document carries, and ours carried none (`InvoiceXml` writes the IDNO alone). The first try
+      passed the minute the live tests allowed and was given up on; the second took 39 s. Only the
+      2017 invoice still fails with the HTML 500 seen on 2026-10-18.
+- [x] **`PostInvoices` does not check a line's arithmetic.** `LiveProbes` (run by hand with
+      `KONTA_EFACTURA_PROBE`) posted three drafts of one row, 3 × 3.375 = 10.125, its
+      `TotalPriceWithoutTVA` and `TotalPrice` written 10.12, 10.13 and 10.14: all three registered,
+      and `GetInvoicesForSigning` gave each back as written, 10.14 included. So the supplier's own
+      rounding is what SFS keeps, whichever it is; what SFS would print or say at signing for a
+      total that is wrong is not yet seen (the three drafts, `konta-round-20261103142404-*`, stay on
+      the test account to try). `InvoiceLine` rounds half to even; a product that rounds otherwise
+      in its books must post its own amounts or carry a ban's difference to SFS.
+
 ## Resilience
 
 Wrap every call: retry on transport faults and 5xx with exponential backoff and jitter, never retry
