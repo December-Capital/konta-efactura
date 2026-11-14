@@ -157,7 +157,8 @@ Collected so you do not have to rediscover them.
     (`SearchInvoices` with `APIeInvoiceId`, or the XML from `GetInvoicesForSigning`), and never
     read "not found" just after posting as "not posted".
 16. **Identical drafts are merged.** Post the same content twice and one draft remains, which
-    makes a blind retry harmless but means two genuinely identical invoices need a difference.
+    makes a repeat after a timeout harmless on the platform's side (when to repeat a call at all:
+    SOAP-NOTES.md, Resilience) but means two genuinely identical invoices need a difference.
 17. **A search filters by one invoice status, always.** The wire carries `InvoiceStatus` even when
     you mean "any", and 0 is Draft.
 18. **`DeleteDraftInvoice` answers "deleted" whatever the id.** `Status` 2 and "Factura Draft a fost
