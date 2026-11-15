@@ -169,4 +169,13 @@ public sealed class ClientTests
         Assert.Equal("konta-distinct-12", draft.CorrelationId);
         Assert.Null((draft with { Xml = null }).CorrelationId);
     }
+
+    [Fact]
+    public void Xml_that_does_not_parse_has_no_correlation_id_and_is_refused_as_a_document()
+    {
+        var broken = new EFacturaInvoiceXml(new EFacturaInvoiceId("", ""), true, EFacturaInvoiceStatus.Draft, null, "<Document><AdditionalInformation><id>konta-13</id>");
+
+        Assert.Null(broken.CorrelationId);
+        Assert.Throws<FormatException>(() => broken.ReadDocument());
+    }
 }

@@ -355,9 +355,14 @@ From the PC through the SSH tunnel to the registered address (`ssh -N -D 127.0.0
 
 ## Resilience
 
-Wrap every call: retry on transport faults and 5xx with exponential backoff and jitter, never retry
-an authentication fault, and make `PostInvoices` idempotent by carrying our own `RequestId` and
-`AdditionalInformation/id` so a retry after a timeout can be reconciled rather than duplicated.
+An HTTP 500 with an HTML body means "refused or down", never "try again": a wrong password answers
+that way (above), and so does an operation the service lacks. Never retry it automatically. The API
+user locks after a few failed logins, and only the company's director can unlock it, in SFS's
+settings, so a retry loop around a refused password locks the company out. Stop, and make one `Test`
+call by hand before any further call. Retry only a clear transport failure, a connection refused or a
+timeout before any response, and only a bounded number of times. Make `PostInvoices` idempotent by
+carrying our own `RequestId` and `AdditionalInformation/id`, so a retry after a timeout can be
+reconciled rather than duplicated.
 
 The guide warns that processing is queued and can be slow on the last day of the month, when
 everyone files at once. Assume timeouts are normal there, and never treat a timeout as a failure to

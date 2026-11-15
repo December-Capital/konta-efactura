@@ -191,12 +191,28 @@ public sealed record EFacturaInvoiceXml(EFacturaInvoiceId Id, bool Found, EFactu
 {
     /// <summary>
     /// Our own id from the document's <c>AdditionalInformation/id</c>: the only handle on a draft,
-    /// which has no series or number yet.
+    /// which has no series or number yet. Null when the platform sent no XML, when the document
+    /// carries no id, and when the XML does not parse (<see cref="ReadDocument"/> says why).
     /// </summary>
-    public string? CorrelationId =>
-        string.IsNullOrEmpty(Xml)
-            ? null
-            : System.Xml.Linq.XElement.Parse(Xml).Element("AdditionalInformation")?.Element("id")?.Value;
+    public string? CorrelationId
+    {
+        get
+        {
+            if (string.IsNullOrEmpty(Xml))
+            {
+                return null;
+            }
+
+            try
+            {
+                return System.Xml.Linq.XElement.Parse(Xml).Element("AdditionalInformation")?.Element("id")?.Value;
+            }
+            catch (System.Xml.XmlException)
+            {
+                return null;
+            }
+        }
+    }
 
     /// <summary>The document read from <see cref="Xml"/>, or null when the platform sent none.</summary>
     /// <returns>The document.</returns>
